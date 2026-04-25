@@ -22,9 +22,7 @@ let toneInstruments = {};
 // WebRTC Variables (สำหรับระบบไมค์)
 let peer = null;
 let myPeerId = null;
-let activeCalls = {};       // peerId → call object
-let remoteAudios = {};      // peerId → <audio> element
-let silentStream = null;    // stream เงียบ สำหรับส่งตอนไมค์ปิด
+let activeCalls = {};
 
 // --- Guitar MP3 Audio Cache ---
 const guitarAudios = {};
@@ -120,7 +118,7 @@ function handleServerMessage(msg) {
     }
 }
 
-// --- 6. ระบบไมโครโฟน WebRTC ---
+// --- 6. ระบบไมโครโฟน WebRTC (ลื่นไหล ไม่กระตุก) ---
 async function login() {
     myName = document.getElementById('username').value.trim();
     if (!myName) { notify("Name required", "error"); return; }
@@ -129,18 +127,24 @@ async function login() {
         await Tone.start();
         await initAudio();
 
-        // ขอสิทธิ์ไมค์จริงๆ — track enabled=false = เงียบ แต่ stream ยังมีอยู่
-        micStream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-                echoCancellation: true,
-                noiseSuppression: true,
-                autoGainControl: true
-            }
-        });
-        // ปิดไมค์ไว้ก่อน (Muted) จนกว่าผู้ใช้จะกดปุ่ม
-        micStream.getAudioTracks().forEach(t => t.enabled = false);
+        // ขอสิทธิ์ไมค์ — เชื่อมเข้า Web Audio Graph เดียวกับดนตรี
+        try {
+            micStream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
+            });
+            // เชื่อม mic เข้า graph: mic → micGain → mixerDest
+            // micGain.gain = 0 อยู่แล้ว (ปิดไว้จนกว่ากดปุ่ม)
+            micSourceNode = sharedCtx.createMediaStreamSource(micStream);
+            micSourceNode.connect(micGain);
+        } catch(micErr) {
+            notify("ไม่มีไมค์ — เล่นดนตรีได้อย่างเดียว", "info");
+        }
 
-        // สร้าง Peer พร้อม STUN server เผื่อใช้ข้ามเครือข่าย
+        // PeerJS ส่ง mixedStream (mic + ดนตรี รวมกัน) แทน micStream เปล่าๆ
         peer = new Peer(undefined, {
             config: {
                 iceServers: [
@@ -152,7 +156,6 @@ async function login() {
 
         peer.on('open', (id) => {
             myPeerId = id;
-            console.log('🎙️ My PeerID:', id);
             connect();
         });
 
@@ -161,85 +164,58 @@ async function login() {
             notify('Voice error: ' + err.type, 'error');
         });
 
-        // รับสายจากเพื่อน — ตอบด้วย micStream จริงๆ เสมอ
+        // ตอบรับสาย — ส่ง mixedStream กลับ (ทั้งไมค์+ดนตรีของเรา)
         peer.on('call', (call) => {
-            call.answer(micStream);
+            call.answer(mixedStream);
             handleCall(call);
         });
 
     } catch (e) {
-        notify("ไม่สามารถเข้าถึงไมค์ได้: " + e.message, "error");
-        // ถ้าไม่มีไมค์ก็ยังเล่นดนตรีได้ — ใช้ silent stream แทน
-        micStream = createSilentStream();
-        peer = new Peer();
-        peer.on('open', (id) => { myPeerId = id; connect(); });
-        peer.on('call', (call) => { call.answer(micStream); handleCall(call); });
+        notify("เกิดข้อผิดพลาด: " + e.message, "error");
     }
-}
-
-// สร้าง stream เงียบสำหรับคนที่ไม่มีไมค์
-function createSilentStream() {
-    const ctx = new AudioContext();
-    const dest = ctx.createMediaStreamDestination();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    gain.gain.value = 0;
-    osc.connect(gain);
-    gain.connect(dest);
-    osc.start();
-    return dest.stream;
 }
 
 function handleCall(call) {
-    console.log("☎️ เชื่อมต่อกับ Peer:", call.peer);
-
-    // ถ้ามี call เก่าอยู่ก็ปิดก่อน
-    if (activeCalls[call.peer]) {
-        activeCalls[call.peer].close();
-    }
+    console.log("☎️ กำลังเชื่อมต่อสายกับ Peer:", call.peer);
     activeCalls[call.peer] = call;
 
     call.on('stream', (remoteStream) => {
-        console.log("🔊 ได้รับ stream จาก:", call.peer, '— tracks:', remoteStream.getAudioTracks().length);
-
-        // ลบ audio element เก่าออกก่อน
-        if (remoteAudios[call.peer]) {
-            remoteAudios[call.peer].srcObject = null;
-            remoteAudios[call.peer].remove();
+        console.log("🔊 ได้รับสัญญาณเสียงจาก:", call.peer);
+        
+        let audio = document.getElementById('audio-' + call.peer);
+        if (!audio) {
+            audio = document.createElement('audio');
+            audio.id = 'audio-' + call.peer;
+            audio.autoplay = true;
+            audio.controls = false;
+            // 🔥 1. บังคับปลด Mute และเร่งเสียงให้สุด
+            audio.muted = false; 
+            audio.volume = 1.0;  
+            audio.setAttribute('playsinline', 'true');
+            document.body.appendChild(audio);
         }
-
-        const audio = document.createElement('audio');
-        audio.id = 'audio-' + call.peer;
-        audio.autoplay = true;
-        audio.muted = false;
-        audio.volume = 1.0;
-        audio.setAttribute('playsinline', '');
+        
         audio.srcObject = remoteStream;
-        document.body.appendChild(audio);
-        remoteAudios[call.peer] = audio;
-
-        // เล่นทันที — ถ้าโดนบล็อกก็รอ user gesture แล้วเล่นซ้ำ
-        audio.play().catch(() => {
-            notify("กดที่หน้าจอ 1 ครั้ง เพื่อเปิดเสียงไมค์", "error");
-            const resume = () => {
-                audio.play().catch(() => {});
-                document.body.removeEventListener('click', resume);
-                document.body.removeEventListener('touchstart', resume);
-            };
-            document.body.addEventListener('click', resume, { once: true });
-            document.body.addEventListener('touchstart', resume, { once: true });
-        });
+        
+        // 🔥 2. ดักจับ Autoplay
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(error => {
+                console.error("🔇 Autoplay ถูกบล็อก:", error);
+                notify("คลิกที่ใดก็ได้บนหน้าจอ 1 ครั้ง เพื่อให้เสียงไมค์ทำงาน", "error");
+                
+                // ถ้าระบบโดนบล็อก รอให้ผู้ใช้คลิกจอ 1 ครั้งแล้วสั่งเล่นใหม่
+                document.body.addEventListener('click', () => {
+                    audio.play();
+                    audio.muted = false; // ย้ำปลด Mute อีกรอบหลังคลิก
+                }, { once: true });
+            });
+        }
     });
 
-    call.on('error', (err) => console.error('Call error:', err));
-
     call.on('close', () => {
-        console.log("📴 ปิดสายกับ:", call.peer);
-        if (remoteAudios[call.peer]) {
-            remoteAudios[call.peer].srcObject = null;
-            remoteAudios[call.peer].remove();
-            delete remoteAudios[call.peer];
-        }
+        const audio = document.getElementById('audio-' + call.peer);
+        if (audio) audio.remove();
         delete activeCalls[call.peer];
     });
 }
@@ -247,17 +223,18 @@ function handleCall(call) {
 function toggleMic() {
     const btn = document.getElementById('micBtn');
     isMicOn = !isMicOn;
-    if (micStream && micStream.getAudioTracks()[0]) {
-        micStream.getAudioTracks()[0].enabled = isMicOn;
+    // ใช้ GainNode toggle — smooth ไม่มีคลิก และไม่กระทบ WebRTC stream
+    if (micGain) {
+        micGain.gain.setTargetAtTime(isMicOn ? 1.0 : 0, sharedCtx.currentTime, 0.01);
     }
     btn.classList.toggle('mic-active', isMicOn);
 }
 
 function stopMic() {
-    if (micStream && micStream.getAudioTracks()[0]) {
-        micStream.getAudioTracks()[0].enabled = false;
-    }
     isMicOn = false;
+    if (micGain) {
+        micGain.gain.setTargetAtTime(0, sharedCtx.currentTime, 0.01);
+    }
     document.getElementById('micBtn').classList.remove('mic-active');
 }
 
@@ -309,11 +286,10 @@ function leaveRoom() {
     switchScreen('lobby');
     stopMic();
 
-    // วางสายและลบ audio elements ทั้งหมด
-    Object.values(activeCalls).forEach(call => { try { call.close(); } catch(e){} });
+    // วางสายทุกคนตอนออกจากห้อง
+    Object.values(activeCalls).forEach(call => call.close());
     activeCalls = {};
-    Object.values(remoteAudios).forEach(a => { a.srcObject = null; a.remove(); });
-    remoteAudios = {};
+    document.querySelectorAll('audio').forEach(a => a.remove());
 
     currentInst = "";
     document.getElementById('instrumentDeck').innerHTML = '';
@@ -325,17 +301,13 @@ function renderMembers(users) {
             <div class="status-dot online"></div>
             <div><h5>${u.name}</h5><h6>(${u.instrument})</h6></div>
         </div>`).join('');
-
-    // โทรหาสมาชิกที่ยังไม่ได้โทร (caller = ID น้อยกว่า เพื่อกัน double-call)
-    // ใช้ peerId เป็น tiebreaker
-    if (!peer || !micStream) return;
+        
+    // โทรหาสมาชิกที่ยังไม่ได้โทร — ส่ง mixedStream (mic+ดนตรีรวมกัน)
+    if (!peer || !mixedStream) return;
     users.forEach(u => {
-        if (u.id === myId || !u.peerId) return;
-        if (activeCalls[u.peerId]) return; // โทรไปแล้ว
-        // โทรออกเฉพาะคนที่ myId < u.id (alphabetical) เพื่อกัน 2 ฝั่งโทรหากัน
-        if (myId < u.id) {
+        if (u.id !== myId && u.peerId && !activeCalls[u.peerId]) {
             console.log('📞 โทรออกหา:', u.name, u.peerId);
-            const call = peer.call(u.peerId, micStream);
+            const call = peer.call(u.peerId, mixedStream);
             if (call) handleCall(call);
         }
     });
@@ -353,8 +325,38 @@ function renderChat(d) {
 }
 
 // --- 8. ระบบเครื่องดนตรี (Audio Engine) ---
+// --- 8. ระบบเครื่องดนตรี (Audio Engine) ---
+
+// AudioContext ร่วม — ใช้ Tone.js context เพื่อให้ทุกอย่างอยู่ใน graph เดียวกัน
+let sharedCtx = null;
+let micSourceNode = null;      // MediaStreamSourceNode ของไมค์
+let mixerDest = null;          // MediaStreamDestinationNode (output รวม mic+ดนตรี)
+let micGain = null;            // GainNode สำหรับ toggle mic
+let mixedStream = null;        // stream ที่รวมแล้ว ส่งผ่าน PeerJS
+
 async function initAudio() {
     if (toneInstruments.piano) return;
+
+    // ใช้ AudioContext ของ Tone.js เป็น context กลาง
+    sharedCtx = Tone.getContext().rawContext;
+
+    // สร้าง MixerDestination — จุดรวมเสียงทุกอย่างก่อนส่งออก WebRTC
+    mixerDest = sharedCtx.createMediaStreamDestination();
+    mixedStream = mixerDest.stream;
+
+    // GainNode สำหรับ mic (เปิด/ปิดด้วย gain แทน track.enabled เพื่อ smooth)
+    micGain = sharedCtx.createGain();
+    micGain.gain.value = 0; // ปิดไว้ก่อน
+    micGain.connect(mixerDest);
+
+    // Master gain สำหรับเสียงดนตรีที่จะส่งออก WebRTC ด้วย
+    const instMixGain = sharedCtx.createGain();
+    instMixGain.gain.value = 0.85;
+    instMixGain.connect(mixerDest);
+
+    // เชื่อม Tone.js destination → instMixGain → mixerDest
+    // Tone.Destination เป็น AudioNode ดึงได้ผ่าน .input
+    Tone.getDestination().connect(instMixGain);
 
     const reverb = new Tone.Reverb(0.4).toDestination();
 
@@ -386,21 +388,14 @@ async function initAudio() {
         "kick": "kick.mp3", "snare": "snare.mp3", "closehihat": "closehihat.mp3",
         "openhihat": "openhihat.mp3", "tom1": "tom1.mp3", "tom2": "tom2.mp3",
         "floor": "floor.mp3", "crash": "crash.mp3", "ride": "ride.mp3"
-    }, {
-        baseUrl: "/sounds/drum/",
-    }).toDestination();
+    }, { baseUrl: "/sounds/drum/" }).toDestination();
     toneInstruments.drums.volume.value = 5;
 
     // 3. Guitar
     toneInstruments.guitar = new Tone.Sampler({
         urls: { 
-            "A3": "Guitar_A.mp3", 
-            "B3": "Guitar_B.mp3", 
-            "C4": "Guitar_C.mp3", 
-            "D4": "Guitar_D.mp3", 
-            "E4": "Guitar_E.mp3", 
-            "F4": "Guitar_F.mp3", 
-            "G4": "Guitar_G.mp3" 
+            "A3": "Guitar_A.mp3", "B3": "Guitar_B.mp3", "C4": "Guitar_C.mp3",
+            "D4": "Guitar_D.mp3", "E4": "Guitar_E.mp3", "F4": "Guitar_F.mp3", "G4": "Guitar_G.mp3" 
         },
         baseUrl: "/sounds/guitar/"
     }).connect(reverb);
@@ -421,16 +416,11 @@ const SoundEngine = {
         }
     },
    playGuitar: (idx) => {
-        const noteMap = ['A', 'B', 'C', 'D', 'E', 'F']; 
+        // ใช้ Tone.js Sampler — อยู่ใน Web Audio graph เดียวกัน ส่งผ่าน WebRTC ได้
+        const noteMap = ['A3', 'B3', 'C4', 'D4', 'E4', 'F4'];
         const note = noteMap[idx];
-        
-        if (note) {
-            const audio = guitarAudios[note];
-            if (audio) {
-                audio.currentTime = 0; 
-                audio.volume = guitarVolume;
-                audio.play().catch(() => {});
-            }
+        if (note && toneInstruments.guitar?.loaded) {
+            toneInstruments.guitar.triggerAttackRelease(note, '2n');
         }
     },
     playBass: (idx) => {
@@ -550,157 +540,92 @@ function renderInstrument(type) {
         deck.appendChild(c);
 
     } else if (type === 'Guitar') {
-        buildFretboard('Guitar', deck, [
-            { idx: 5, label: 'e', wound: false, thick: 1.5, dotStr: false, dot12: false },
-            { idx: 4, label: 'B', wound: false, thick: 2,   dotStr: false, dot12: false },
-            { idx: 3, label: 'G', wound: false, thick: 2.5, dotStr: true,  dot12: false },
-            { idx: 2, label: 'D', wound: true,  thick: 3.5, dotStr: false, dot12: false },
-            { idx: 1, label: 'A', wound: true,  thick: 4.5, dotStr: false, dot12: true  },
-            { idx: 0, label: 'E', wound: true,  thick: 5.5, dotStr: false, dot12: false },
-        ]);
+        const labels = ['E(1)', 'A(2)', 'D(3)', 'G(4)', 'B(5)', 'E(6)'];
+        const board = document.createElement('div');
+        board.className = 'instrument-board guitar-board';
+        
+        labels.forEach((label, i) => {
+            const row = document.createElement('div');
+            row.className = 'string-row';
+            const lb = document.createElement('div');
+            lb.className = 'string-label'; lb.innerText = label;
+            
+            const lineContainer = document.createElement('div');
+            lineContainer.className = 'string-line-container';
+            const line = document.createElement('div');
+            line.className = 'string-line'; line.id = `guitar-string-${i}`; 
+            
+            const play = () => { playLocalNote(i, 'Guitar'); triggerVisual({ instrument: 'Guitar', note: i }); };
+            
+            lineContainer.onmousedown = play;
+            lineContainer.addEventListener('touchstart', (e) => { e.preventDefault(); play(); }, { passive: false });
+            
+            lineContainer.appendChild(line);
+            row.appendChild(lb); row.appendChild(lineContainer); board.appendChild(row);
+        });
+        deck.appendChild(board);
 
     } else if (type === 'Bass') {
-        buildFretboard('Bass', deck, [
-            { idx: 0, label: 'G', wound: false, thick: 3,   dotStr: false, dot12: false },
-            { idx: 1, label: 'D', wound: true,  thick: 5,   dotStr: true,  dot12: false },
-            { idx: 2, label: 'A', wound: true,  thick: 6.5, dotStr: false, dot12: true  },
-            { idx: 3, label: 'E', wound: true,  thick: 8,   dotStr: false, dot12: false },
-        ]);
+        const labels = ['E(1)', 'A(2)', 'D(3)', 'G(4)'];
+        const board = document.createElement('div');
+        board.className = 'instrument-board bass-board';
+        
+        labels.forEach((label, i) => {
+            const row = document.createElement('div');
+            row.className = 'string-row';
+            const lb = document.createElement('div');
+            lb.className = 'string-label'; lb.innerText = label;
+            
+            const lineContainer = document.createElement('div');
+            lineContainer.className = 'string-line-container';
+            const line = document.createElement('div');
+            line.className = 'string-line'; line.id = `bass-string-${i}`; 
+            
+            const play = () => { playLocalNote(i, 'Bass'); triggerVisual({ instrument: 'Bass', note: i }); };
+            
+            lineContainer.onmousedown = play;
+            lineContainer.addEventListener('touchstart', (e) => { e.preventDefault(); play(); }, { passive: false });
+            
+            lineContainer.appendChild(line);
+            row.appendChild(lb); row.appendChild(lineContainer); board.appendChild(row);
+        });
+        deck.appendChild(board);
 
     } else if (type === 'Singer') {
         const board = document.createElement('div');
         board.className = 'instrument-board singer-board'; 
+        
         const title = document.createElement('h3');
         title.className = 'singer-title'; title.innerText = 'Lyrics';
+        
         const textArea = document.createElement('textarea');
         textArea.className = 'singer-lyrics-input'; textArea.placeholder = 'พิมพ์หรือวางเนื้อเพลงที่นี่...';
+        
         board.appendChild(title); board.appendChild(textArea); deck.appendChild(board);
     }
 }
 
-// --- Fretboard Builder (Guitar & Bass) ---
-function buildFretboard(type, deck, strings) {
-    const FRETS = 13; // open + 12
-    const DOT_FRETS = [3, 5, 7, 9, 12];
-    const keyMap = type === 'Guitar'
-        ? { 5:'1', 4:'2', 3:'3', 2:'4', 1:'5', 0:'6' }
-        : { 0:'1', 1:'2', 2:'3', 3:'4' };
-
-    // คำนวณความกว้างแต่ละ fret (fret ใกล้ nut กว้างกว่า)
-    const rawW = Array.from({length: FRETS}, (_, i) => 1 / Math.pow(1.059, i));
-    const total = rawW.reduce((a,b) => a+b, 0);
-    const fretPcts = rawW.map(w => (w/total)*100);
-
-    const wrap = document.createElement('div');
-    wrap.className = 'fretboard-wrap';
-
-    // === NUT ===
-    const nut = document.createElement('div');
-    nut.className = 'fretboard-nut';
-    strings.forEach(s => {
-        const lbl = document.createElement('div');
-        lbl.className = 'nut-label';
-        lbl.textContent = s.label;
-        nut.appendChild(lbl);
-    });
-    wrap.appendChild(nut);
-
-    // === BODY ===
-    const body = document.createElement('div');
-    body.className = 'fretboard-body';
-
-    // fret number row
-    const numRow = document.createElement('div');
-    numRow.className = 'fretboard-fret-numbers';
-    fretPcts.forEach((w, f) => {
-        const cell = document.createElement('div');
-        cell.className = 'fret-num-cell';
-        cell.style.flex = `0 0 ${w}%`;
-        cell.textContent = f === 0 ? '' : f;
-        numRow.appendChild(cell);
-    });
-    body.appendChild(numRow);
-
-    strings.forEach(s => {
-        const row = document.createElement('div');
-        row.className = 'fret-row';
-        row.id = `fretrow-${type}-${s.idx}`;
-
-        // สายกีตาร์/เบส
-        const strLine = document.createElement('div');
-        strLine.className = `fret-string-line${s.wound ? ' wound' : ''}`;
-        strLine.id = `strline-${type}-${s.idx}`;
-        strLine.style.height = s.thick + 'px';
-        row.appendChild(strLine);
-
-        // fret bars + dots
-        let leftPct = 0;
-        fretPcts.forEach((w, f) => {
-            if (f > 0) {
-                const bar = document.createElement('div');
-                bar.className = 'fret-bar';
-                bar.style.left = leftPct + '%';
-                row.appendChild(bar);
-            }
-            // dots (fret position markers)
-            if (s.dotStr && DOT_FRETS.includes(f) && f !== 12) {
-                const dot = document.createElement('div');
-                dot.className = 'fret-dot';
-                dot.style.left = `calc(${leftPct + w/2}% - 7px)`;
-                row.appendChild(dot);
-            }
-            if (s.dot12 && f === 12) {
-                const dot = document.createElement('div');
-                dot.className = 'fret-dot';
-                dot.style.left = `calc(${leftPct + w/2}% - 7px)`;
-                row.appendChild(dot);
-            }
-            leftPct += w;
-        });
-
-        // key hint
-        const hint = document.createElement('div');
-        hint.className = 'fret-key-hint';
-        hint.innerHTML = `<span class="fret-key-chip">KEY ${keyMap[s.idx]}</span>`;
-        row.appendChild(hint);
-
-        // play action
-        const play = () => {
-            playLocalNote(s.idx, type);
-            triggerVisual({ instrument: type, note: s.idx });
-        };
-        row.onmousedown = (e) => { e.preventDefault(); play(); };
-        row.addEventListener('touchstart', (e) => { e.preventDefault(); play(); }, { passive: false });
-        body.appendChild(row);
-    });
-
-    wrap.appendChild(body);
-    deck.appendChild(wrap);
-}
-
 function triggerVisual(data) {
-    if (data.instrument === 'Piano') {
-        const el = document.getElementById(`note-${data.note}`);
-        if (el) { el.classList.add('hit'); setTimeout(() => el.classList.remove('hit'), 200); }
-    } else if (data.instrument === 'Drum') {
-        const el = document.getElementById(`drum-${data.note}`);
-        if (el) { el.classList.add('hit'); setTimeout(() => el.classList.remove('hit'), 200); }
-    } else if (data.instrument === 'Guitar' || data.instrument === 'Bass') {
-        const row = document.getElementById(`fretrow-${data.instrument}-${data.note}`);
-        const strLine = document.getElementById(`strline-${data.instrument}-${data.note}`);
-        if (row) {
-            row.classList.remove('plucked');
-            void row.offsetWidth;
-            row.classList.add('plucked');
-            setTimeout(() => row.classList.remove('plucked'), 350);
+    let el;
+    if (data.instrument === 'Piano') el = document.getElementById(`note-${data.note}`);
+    else if (data.instrument === 'Drum') el = document.getElementById(`drum-${data.note}`);
+    else if (data.instrument === 'Guitar') {
+        if(typeof data.note === 'number') {
+            const ripple = document.getElementById(`ripple-guitar-${data.note}`);
+            const row = document.getElementById(`guitar-string-${data.note}`);
+            if (ripple) { ripple.classList.remove('active'); void ripple.offsetWidth; ripple.classList.add('active'); }
+            if (row) { const line = row.querySelector('.string-line'); if (line) { line.style.boxShadow = '0 0 12px #fff'; setTimeout(() => line.style.boxShadow = '', 300); } }
         }
-        if (strLine) {
-            strLine.classList.remove('vibrating');
-            void strLine.offsetWidth;
-            strLine.classList.add('vibrating');
-            setTimeout(() => strLine.classList.remove('vibrating'), 400);
-        }
+        return;
+    } else if (data.instrument === 'Bass') {
+        const ripple = document.getElementById(`ripple-bass-${data.note}`);
+        const row = document.getElementById(`bass-string-${data.note}`);
+        if (ripple) { ripple.classList.remove('active'); void ripple.offsetWidth; ripple.classList.add('active'); }
+        if (row) { const line = row.querySelector('.string-line'); if (line) { line.style.boxShadow = '0 0 16px #fff'; setTimeout(() => line.style.boxShadow = '', 400); } }
+        return;
     }
+    
+    if (el) { el.classList.add('hit'); setTimeout(() => el.classList.remove('hit'), 200); }
 }
 
 function toggleSustain() {
