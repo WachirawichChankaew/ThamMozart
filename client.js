@@ -129,7 +129,11 @@ async function login() {
 
         // ขอสิทธิ์ไมค์ทันที แต่ปิดเสียงไว้ก่อน (Mute)
         micStream = await navigator.mediaDevices.getUserMedia({
-            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+            audio: { 
+                echoCancellation: false, 
+                noiseSuppression: false,  
+                autoGainControl: false    
+            }
         });
         if (micStream.getAudioTracks().length > 0) {
             micStream.getAudioTracks()[0].enabled = false; 
