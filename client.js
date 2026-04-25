@@ -177,14 +177,12 @@ function stopMic() {
 }
 function playAudioStream(buffer) {
     const audioCtx = Tone.context.rawContext; 
-    
     if (buffer.byteLength <= 4) return; 
     
-    // แกะค่า Sample Rate
-    const senderSampleRate = new DataView(buffer).getFloat32(0, true);
+    const view = new DataView(buffer);
+    const senderSampleRate = view.getFloat32(0, true);
     if (senderSampleRate < 8000 || senderSampleRate > 96000) return;
     
-    // 🔥 3. ใช้ Int16Array และ Float32Array ช่วยถอดรหัสเสียงอย่างรวดเร็ว
     const int16Array = new Int16Array(buffer, 4);
     const float32 = new Float32Array(int16Array.length);
     for (let i = 0; i < int16Array.length; i++) {
@@ -200,12 +198,18 @@ function playAudioStream(buffer) {
 
     const currentTime = audioCtx.currentTime;
 
-    // 🔥 4. ล็อก Jitter Buffer ไว้ที่ 0.6 วินาที (600ms) 
-    // เป็นเวลาที่เพียงพอให้เน็ตแกว่งได้โดยที่เสียงไม่ขาด
-    if (nextAudioTime < currentTime) {
-        nextAudioTime = currentTime + 0.6; 
-    } else if (nextAudioTime > currentTime + 2.0) {
-        nextAudioTime = currentTime + 0.6;
+    // 🔥 ระบบ Jitter Buffer ขั้นสูงสุดสำหรับ WebSocket
+    // เช็คว่าคิวเสียงในอนาคตเหลือให้เล่นอีกกี่วินาที
+    let timeDifference = nextAudioTime - currentTime;
+
+    if (timeDifference < 0.1) {
+        // ถ้าคิวเสียงแห้ง (เหลือน้อยกว่า 0.1 วิ) แปลว่าเน็ตเริ่มส่งไม่ทัน
+        // ให้เด้งเวลาเผื่อไปอีก 0.35 วิ เพื่อให้เน็ตโหลดก้อนใหม่มาตุนไว้ทัน
+        nextAudioTime = currentTime + 0.35; 
+    } else if (timeDifference > 1.2) {
+        // ถ้าเน็ตค้างแล้วส่งมารวดเดียวจนคิวสะสมยาวเกินไป (ดีเลย์เกิน 1.2 วิ)
+        // ให้ตัดคิวทิ้งเพื่อดึงเสียงกลับมาให้ตรงกับปัจจุบัน
+        nextAudioTime = currentTime + 0.35;
     }
 
     src.start(nextAudioTime);
