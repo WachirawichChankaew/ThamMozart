@@ -389,7 +389,7 @@ async function initAudio() {
         "openhihat": "openhihat.mp3", "tom1": "tom1.mp3", "tom2": "tom2.mp3",
         "floor": "floor.mp3", "crash": "crash.mp3", "ride": "ride.mp3"
     }, { baseUrl: "/sounds/drum/" }).toDestination();
-    toneInstruments.drums.volume.value = 5;
+    toneInstruments.drums.volume.value = 1;
 
     // 3. Guitar
     toneInstruments.guitar = new Tone.Sampler({
@@ -399,14 +399,14 @@ async function initAudio() {
         },
         baseUrl: "/sounds/guitar/"
     }).connect(reverb);
-    toneInstruments.guitar.volume.value = 4;
+    toneInstruments.guitar.volume.value = 1;
 
     // 4. Bass
     toneInstruments.bass = new Tone.Sampler({
         urls: { "E1": "bass4.mp3", "A1": "bass3.mp3", "D2": "bass2.mp3", "G2": "bass1.mp3" },
         baseUrl: "/sounds/bass/", release: 0.3
     }).toDestination();
-    toneInstruments.bass.volume.value = 3;
+    toneInstruments.bass.volume.value = 1;
 }
 
 const SoundEngine = {
