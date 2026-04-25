@@ -284,10 +284,13 @@ async function initAudio() {
     toneInstruments.guitar.volume.value = 8;
 
     toneInstruments.bass = new Tone.Sampler({
-        urls: { "E1": "E1.mp3", "A1": "A1.mp3", "D2": "D2.mp3", "G2": "G2.mp3" },
-        baseUrl: "/sounds/bass/"
+        urls: { "E1": "bass4.mp3", 
+            "A1": "bass3.mp3", 
+            "D2": "bass2.mp3", 
+            "G2": "bass1.mp3" },
+        baseUrl: "/sounds/bass/",release: 0.3
     }).toDestination();
-    toneInstruments.bass.volume.value = 12;
+    toneInstruments.bass.volume.value = 3;
 }
 
 const SoundEngine = {
@@ -305,7 +308,8 @@ const SoundEngine = {
     playBass: (idx) => {
         const notes = ["E1", "A1", "D2", "G2"];
         if (toneInstruments.bass?.loaded) {
-            toneInstruments.bass.triggerAttackRelease(notes[idx], "2n");
+            toneInstruments.bass.releaseAll();
+            toneInstruments.bass.triggerAttack(notes[idx]);
         }
     },
     playDrum: (type) => {
@@ -432,6 +436,44 @@ function renderInstrument(type) {
             c.appendChild(b);
         });
         deck.appendChild(c);
+    } else if (type === 'Bass') {
+        const bassContainer = document.createElement('div');
+        bassContainer.className = 'bass-fretboard';
+        
+        // สายเบส 4 สาย: อ้างอิง index ตาม SoundEngine.playBass ของคุณ
+        // 3 = G2 (สาย 1 เล็กสุด), 2 = D2 (สาย 2), 1 = A1 (สาย 3), 0 = E1 (สาย 4 ใหญ่สุด)
+        const strings = [
+            { id: 3, label: 'G (Key 1)' }, 
+            { id: 2, label: 'D (Key 2)' },
+            { id: 1, label: 'A (Key 3)' },
+            { id: 0, label: 'E (Key 4)' }
+        ];
+
+        strings.forEach((str) => {
+            const stringDiv = document.createElement('div');
+            stringDiv.className = `bass-string string-${str.id}`;
+            stringDiv.id = `bass-${str.id}`;
+            
+            // ใส่ Label บอกปุ่มกด
+            stringDiv.innerHTML = `<span>${str.label}</span>`;
+
+            // รองรับเมาส์คลิก
+            stringDiv.onmousedown = () => {
+                playLocalNote(str.id, 'Bass');
+                triggerVisual({ instrument: 'Bass', note: str.id });
+            };
+
+            // รองรับการสัมผัส (Touch) บนมือถือ
+            stringDiv.addEventListener('touchstart', (e) => {
+                e.preventDefault(); 
+                playLocalNote(str.id, 'Bass');
+                triggerVisual({ instrument: 'Bass', note: str.id });
+            }, { passive: false });
+
+            bassContainer.appendChild(stringDiv);
+        });
+
+        deck.appendChild(bassContainer);
     }
 }
 // --- 9. ระบบแชทและสมาชิก (Chat & Members) ---
@@ -517,14 +559,16 @@ function executeSound(note, inst, sus) {
     else if (inst === 'Bass') SoundEngine.playBass(note);
 }
 
-function triggerVisual(data) {
-    let el;
-    if (data.instrument === 'Piano') el = document.getElementById(`note-${data.note}`);
-    else if (data.instrument === 'Drum') el = document.getElementById(`drum-${data.note}`);
-    if (el) {
-        el.classList.add('hit');
-        setTimeout(() => el.classList.remove('hit'), 200);
-    }
+function triggerVisual(data) { 
+    let el; 
+    if (data.instrument === 'Piano') el = document.getElementById(`note-${data.note}`); 
+    else if (data.instrument === 'Drum') el = document.getElementById(`drum-${data.note}`); 
+    else if (data.instrument === 'Bass') el = document.getElementById(`bass-${data.note}`); // เพิ่มบรรทัดนี้
+    
+    if (el) { 
+        el.classList.add('hit'); 
+        setTimeout(() => el.classList.remove('hit'), 150); 
+    } 
 }
 
 function toggleSustain() {
