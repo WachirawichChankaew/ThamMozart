@@ -116,10 +116,13 @@ async function toggleMic() {
 
     if (!isMicOn) {
         try {
-            // ✅ 1. สร้าง AudioContext ของไมค์แยกต่างหาก ไม่ใช้ Tone.context
-            // และเช็คว่าถ้ายังไม่มี ถึงจะสร้างใหม่ เพื่อกันบัคเบราว์เซอร์ทำงานหนักจนไมค์ช็อต
-            if (!micCtx || micCtx.state === 'closed') {
+            // ✅ 1. สร้าง AudioContext แยกเฉพาะสำหรับไมค์ (ไม่ผ่าน Tone.js)
+            // เช็คว่าถ้ายังไม่มีให้สร้างแค่ครั้งเดียว ทิ้งไว้เลย จะช่วยลดอาการเสียงกระตุกได้มาก
+            if (!micCtx) {
                 micCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (micCtx.state === 'suspended') {
+                await micCtx.resume();
             }
 
             const stream = await navigator.mediaDevices.getUserMedia({
@@ -135,7 +138,7 @@ async function toggleMic() {
 
             const source = micCtx.createMediaStreamSource(stream);
 
-            // ✅ 2. เนื่องจากเราใช้ Context แยกแล้ว คำสั่งนี้จะทำงานได้ 100%
+            // ✅ 2. ตอนนี้เบราว์เซอร์จะรู้จักคำสั่งนี้แล้ว (เพราะไม่โดน Tone.js บล็อก)
             scriptProcessor = micCtx.createScriptProcessor(4096, 1, 1);
 
             scriptProcessor.onaudioprocess = (e) => {
@@ -149,7 +152,7 @@ async function toggleMic() {
                 view.setFloat32(0, micCtx.sampleRate, true); 
 
                 for (let i = 0; i < input.length; i++) {
-                    // ลด Gain ลงเหลือ 0.8 เพื่อป้องกันเสียงแตกเวลาพูดดังๆ
+                    // ✅ 3. ลดความดังลงนิดหน่อย (0.8) กันเสียงแตกเวลาพูดดัง (Clipping)
                     let s = Math.max(-1, Math.min(1, input[i] * 0.8));
                     view.setInt16(4 + (i * 2), s < 0 ? s * 0x8000 : s * 0x7FFF, true);
                 }
@@ -173,13 +176,14 @@ function stopMic() {
         scriptProcessor.disconnect(); 
         scriptProcessor = null; 
     }
+
     
     isMicOn = false;
     document.getElementById('micBtn').classList.remove('mic-active');
 }
 
 function playAudioStream(buffer) {
-    const audioCtx = Tone.context.rawContext;
+    const audioCtx = Tone.context.rawContext; // ส่วนการเล่นเสียง ยังใช้ของ Tone ได้ปกติ
     const view = new DataView(buffer);
     
     const senderSampleRate = view.getFloat32(0, true);
@@ -201,8 +205,8 @@ function playAudioStream(buffer) {
 
     const currentTime = audioCtx.currentTime;
 
-    // 4. 🔥 Jitter Buffer: เพิ่มเวลาหน่วงเป็น 0.25 วิ (250ms) เพื่อให้มีเสียงตุนไว้ในคิว
-    // ป้องกันปัญหาเน็ตแกว่งแล้วเสียงขาดหายจนฟังดูเหมือนเสียงแตก
+    // ✅ 4. ระบบรอคิวเสียง (Jitter Buffer): หน่วง 0.25 วิ ให้เน็ตต่อคิวเสียงทัน 
+    // ช่วยแก้ปัญหาไมค์ช็อตหรือเสียงขาดหายเหมือนหุ่นยนต์
     if (nextAudioTime < currentTime || nextAudioTime > currentTime + 1.0) {
         nextAudioTime = currentTime + 0.25; 
     }
