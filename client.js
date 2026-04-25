@@ -168,25 +168,28 @@ function handleCall(call) {
         if (!audio) {
             audio = document.createElement('audio');
             audio.id = 'audio-' + call.peer;
-            // ตั้งค่าพื้นฐานให้เสียงเล่นได้แน่นอน
             audio.autoplay = true;
             audio.controls = false;
-            audio.setAttribute('playsinline', 'true'); // สำหรับ iOS
+            // 🔥 1. บังคับปลด Mute และเร่งเสียงให้สุด
+            audio.muted = false; 
+            audio.volume = 1.0;  
+            audio.setAttribute('playsinline', 'true');
             document.body.appendChild(audio);
         }
         
         audio.srcObject = remoteStream;
         
-        // 🔥 บังคับให้เล่นเสียง และดักจับถ้าโดนบล็อก
+        // 🔥 2. ดักจับ Autoplay
         const playPromise = audio.play();
         if (playPromise !== undefined) {
             playPromise.catch(error => {
-                console.error("🔇 ระบบ Autoplay บล็อกเสียง:", error);
-                notify("คลิกที่หน้าจอ 1 ครั้งเพื่อเปิดระบบเสียงไมค์", "error");
+                console.error("🔇 Autoplay ถูกบล็อก:", error);
+                notify("คลิกที่ใดก็ได้บนหน้าจอ 1 ครั้ง เพื่อให้เสียงไมค์ทำงาน", "error");
                 
-                // ถ้าโดนบล็อก ให้รอผู้ใช้คลิกอะไรก็ได้แล้วค่อยเล่นใหม่
-                window.addEventListener('click', () => {
+                // ถ้าระบบโดนบล็อก รอให้ผู้ใช้คลิกจอ 1 ครั้งแล้วสั่งเล่นใหม่
+                document.body.addEventListener('click', () => {
                     audio.play();
+                    audio.muted = false; // ย้ำปลด Mute อีกรอบหลังคลิก
                 }, { once: true });
             });
         }
