@@ -415,7 +415,7 @@ async function initAudio() {
         urls: { "E1": "bass4.mp3", "A1": "bass3.mp3", "D2": "bass2.mp3", "G2": "bass1.mp3" },
         baseUrl: "/sounds/bass/", release: 0.3
     }).toDestination();
-    toneInstruments.bass.volume.value = -6;
+    toneInstruments.bass.volume.value = 3;
 }
 
 const SoundEngine = {
@@ -435,7 +435,8 @@ const SoundEngine = {
     playBass: (idx) => {
         const notes = ["E1", "A1", "D2", "G2"];
         if (toneInstruments.bass?.loaded) {
-            toneInstruments.bass.triggerAttackRelease(notes[idx], "4n");
+            toneInstruments.bass.releaseAll();
+            toneInstruments.bass.triggerAttack(notes[idx]);
         }
     },
     playDrum: (type) => {
