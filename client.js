@@ -116,16 +116,10 @@ async function toggleMic() {
 
     if (!isMicOn) {
         try {
-            // 🔥 1. บังคับลด Sample Rate ลงเหลือ 22050 Hz (ประหยัดเน็ต 50%)
-            // ช่วยลดอาการเสียงขาดกระตุกเวลาเน็ตแกว่งได้อย่างมหาศาล
-            if (!micCtx) {
-                const AudioContext = window.AudioContext || window.webkitAudioContext;
-                try {
-                    micCtx = new AudioContext({ sampleRate: 22050 });
-                } catch (e) {
-                    // เผื่อ Safari รุ่นเก่าไม่รองรับการบังคับ Sample Rate ให้ใช้ค่าเริ่มต้น
-                    micCtx = new AudioContext(); 
-                }
+            // 🔥 1. ปล่อยให้เบราว์เซอร์ใช้ Sample Rate พื้นฐานของอุปกรณ์ 
+            // เพื่อไม่ให้ CPU ต้องทำงานหนักในการแปลงความถี่เสียง (ช่วยลดอาการกระตุกได้ดีมาก)
+            if (!micCtx || micCtx.state === 'closed') {
+                micCtx = new (window.AudioContext || window.webkitAudioContext)();
             }
             if (micCtx.state === 'suspended') await micCtx.resume();
 
@@ -142,24 +136,25 @@ async function toggleMic() {
 
             const source = micCtx.createMediaStreamSource(stream);
             
-            // 🔥 2. ปรับก้อนเสียงกลับมาเป็น 4096 เพื่อให้ส่งได้ถี่ยิ่งขึ้น ข้อมูลจะไม่ไปกระจุกตัว
-            scriptProcessor = micCtx.createScriptProcessor(4096, 1, 1);
+            // ส่งก้อนใหญ่ขึ้นเพื่อให้เครื่องมีเวลาพักหายใจ
+            scriptProcessor = micCtx.createScriptProcessor(8192, 1, 1);
 
             scriptProcessor.onaudioprocess = (e) => {
                 if (!isMicOn || ws.readyState !== 1) return;
                 const input = e.inputBuffer.getChannelData(0);
                 
                 const buffer = new ArrayBuffer(4 + (input.length * 2));
-                const view = new DataView(buffer);
-                view.setFloat32(0, micCtx.sampleRate, true); 
+                
+                // ฝังค่า Sample Rate ไว้ 4 ไบต์แรก
+                new DataView(buffer).setFloat32(0, micCtx.sampleRate, true); 
 
+                // 🔥 2. ใช้ Int16Array ทำงานโดยตรงกับ Memory (เร็วกว่าแบบเดิมมาก ป้องกันเบราว์เซอร์ค้าง)
+                const int16Array = new Int16Array(buffer, 4);
                 for (let i = 0; i < input.length; i++) {
-                    // ใช้ if-else คุมเสียงแตกแทน Math.max จะประมวลผลเร็วกว่ามาก
                     let s = input[i] * 0.8; 
                     if (s > 1) s = 1;
                     else if (s < -1) s = -1;
-                    
-                    view.setInt16(4 + (i * 2), s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+                    int16Array[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
                 }
                 ws.send(buffer);
             };
@@ -185,20 +180,20 @@ function stopMic() {
     isMicOn = false;
     document.getElementById('micBtn').classList.remove('mic-active');
 }
-
 function playAudioStream(buffer) {
     const audioCtx = Tone.context.rawContext; 
-    const view = new DataView(buffer);
     
     if (buffer.byteLength <= 4) return; 
     
-    const senderSampleRate = view.getFloat32(0, true);
+    // แกะค่า Sample Rate
+    const senderSampleRate = new DataView(buffer).getFloat32(0, true);
     if (senderSampleRate < 8000 || senderSampleRate > 96000) return;
     
-    const float32 = new Float32Array((buffer.byteLength - 4) / 2);
-    for (let i = 0; i < float32.length; i++) {
-        const int16 = view.getInt16(4 + (i * 2), true);
-        float32[i] = int16 < 0 ? int16 / 0x8000 : int16 / 0x7FFF;
+    // 🔥 3. ใช้ Int16Array และ Float32Array ช่วยถอดรหัสเสียงอย่างรวดเร็ว
+    const int16Array = new Int16Array(buffer, 4);
+    const float32 = new Float32Array(int16Array.length);
+    for (let i = 0; i < int16Array.length; i++) {
+        float32[i] = int16Array[i] / 0x7FFF;
     }
 
     const audioBuf = audioCtx.createBuffer(1, float32.length, senderSampleRate);
@@ -210,15 +205,12 @@ function playAudioStream(buffer) {
 
     const currentTime = audioCtx.currentTime;
 
-    // 🔥 3. ระบบ Jitter Buffer ที่แข็งแกร่งขึ้น
-    // หน่วงเวลาเพิ่มเป็น 0.5 วินาที เพื่อสร้าง "คิวเสียงสำรอง" ให้ลำโพง
-    // ถ้าเน็ตกระตุก ลำโพงก็จะยังเอาคิวที่ตุนไว้มาเล่นได้ เสียงก็จะไม่ขาด
+    // 🔥 4. ล็อก Jitter Buffer ไว้ที่ 0.6 วินาที (600ms) 
+    // เป็นเวลาที่เพียงพอให้เน็ตแกว่งได้โดยที่เสียงไม่ขาด
     if (nextAudioTime < currentTime) {
-        nextAudioTime = currentTime + 0.5; 
-    } 
-    // ถ้าคิวเริ่มดีเลย์สะสมจนภาพกับเสียงไม่ตรงกันเกิน 2 วิ ให้เคลียร์ทิ้งและเริ่มใหม่
-    else if (nextAudioTime > currentTime + 2.0) {
-        nextAudioTime = currentTime + 0.5;
+        nextAudioTime = currentTime + 0.6; 
+    } else if (nextAudioTime > currentTime + 2.0) {
+        nextAudioTime = currentTime + 0.6;
     }
 
     src.start(nextAudioTime);
