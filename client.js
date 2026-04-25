@@ -231,7 +231,6 @@ function confirmJoin() {
 // --- 8. ระบบเครื่องดนตรี (Audio Engine) ---
 async function initAudio() {
     if (Tone.context.state === 'running') return;
-    await Tone.start();
 
     // สร้าง Reverb และเพิ่มความดังรวม (Output Gain)
     const reverb = new Tone.Reverb(0.4).toDestination();
@@ -571,13 +570,19 @@ function renderMembers(users) {
 // --- 10. ฟังก์ชันสนับสนุนอื่นๆ (Helper Functions) ---
 async function login() {
     myName = document.getElementById('username').value.trim();
-    if (!myName) return notify("Please enter your name", "error");
-    if (Tone.context.state !== 'running') {
-        await Tone.start();
+    
+    if (!myName) {
+        notify("Name required", "error");
+        return;
     }
-    initAudio(); 
 
-    connect();
+    try {
+        await Tone.start();
+        await initAudio(); 
+        connect();
+    } catch (e) {
+        notify("Audio Error: " + e.message, "error");
+    }
 }
 
 function sendChat() {
