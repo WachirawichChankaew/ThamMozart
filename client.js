@@ -550,11 +550,24 @@ function renderChat(d) {
 }
 
 function renderMembers(users) {
-    document.getElementById('memberList').innerHTML = users.map(u => `
+    const list = document.getElementById('memberList');
+    if (!list) return;
+
+    list.innerHTML = users.map(u => `
         <div class="member-card">
             <div class="status-dot online"></div>
             <div><h5>${u.name}</h5><h6>(${u.instrument})</h6></div>
         </div>`).join('');
+        
+    // โทรหาคนอื่นในห้อง
+    users.forEach(u => {
+        // ถ้าไม่ใช่ตัวเรา และมี PeerId และยังไม่ได้คุยกันอยู่
+        if (u.id !== myId && u.peerId && !activeCalls[u.peerId]) {
+            console.log("📞 กำลังโทรหาเพื่อน:", u.name, "รหัส:", u.peerId);
+            const call = peer.call(u.peerId, micStream);
+            if (call) handleCall(call);
+        }
+    });
 }
 
 // --- 10. ฟังก์ชันสนับสนุนอื่นๆ (Helper Functions) ---
@@ -591,21 +604,34 @@ async function login() {
 }
 
 function handleCall(call) {
+    console.log("☎️ กำลังเชื่อมต่อสายกับ Peer:", call.peer); // เช็คใน Console (F12)
     activeCalls[call.peer] = call;
+
     call.on('stream', (remoteStream) => {
-        // สร้างลำโพงล่องหนเพื่อเล่นเสียงเพื่อน
-        if (!document.getElementById('audio-' + call.peer)) {
-            const audio = document.createElement('audio');
+        console.log("🔊 ได้รับกระแสเสียงจากเพื่อนแล้ว!", call.peer);
+        
+        let audio = document.getElementById('audio-' + call.peer);
+        if (!audio) {
+            audio = document.createElement('audio');
             audio.id = 'audio-' + call.peer;
-            audio.srcObject = remoteStream;
-            audio.autoplay = true;
             document.body.appendChild(audio);
         }
+        
+        audio.srcObject = remoteStream;
+        // บังคับให้เล่นเสียง และตั้งค่า Volume
+        audio.play().catch(e => console.error("Autoplay blocked:", e));
+        audio.volume = 1.0; 
     });
+
     call.on('close', () => {
+        console.log("❌ สายหลุด:", call.peer);
         const audio = document.getElementById('audio-' + call.peer);
         if (audio) audio.remove();
         delete activeCalls[call.peer];
+    });
+    
+    call.on('error', (err) => {
+        console.error("WebRTC Call Error:", err);
     });
 }
 
