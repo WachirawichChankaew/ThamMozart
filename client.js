@@ -20,7 +20,7 @@ function notify(msg, type = 'info') {
 
 // --- 2. ตัวแปรสถานะ (Global States) ---
 let ws;
-let myName = "", currentInst = "", selectedRoom = "", myId = ""; 
+let myName = "", currentInst = "", selectedRoom = "", myId = "";
 let micStream = null, scriptProcessor = null, micCtx = null, isMicOn = false;
 let isSustain = false, nextAudioTime = 0;
 let toneInstruments = {};
@@ -51,7 +51,7 @@ const KeyLabels = {
 document.addEventListener('keydown', (e) => {
     if (!currentInst || document.getElementById('chatMsg') === document.activeElement) return;
     const key = e.key.toLowerCase();
-    
+
     if (currentInst === 'Piano' && key === ' ') {
         toggleSustain();
         return;
@@ -98,9 +98,9 @@ function send(type, payload) {
 function handleServerMessage(msg) {
     switch (msg.type) {
         case 'UPDATE_LOBBY': renderLobby(msg.payload); break;
-        case 'JOIN_SUCCESS': 
+        case 'JOIN_SUCCESS':
             myId = msg.payload.myId; // รับ Unique ID ของตัวเอง
-            enterRoom(msg.payload); 
+            enterRoom(msg.payload);
             break;
         case 'UPDATE_MEMBERS': renderMembers(msg.payload); break;
         case 'CHAT': renderChat(msg.payload); break;
@@ -121,19 +121,19 @@ async function toggleMic() {
             if (!micCtx || micCtx.state === 'closed') {
                 micCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
             }
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                audio: { 
-                    echoCancellation: true, 
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
                     noiseSuppression: true,
                     autoGainControl: true // เพิ่มระบบปรับความดังเสียงอัตโนมัติ
-                } 
+                }
             });
             micStream = stream;
             isMicOn = true;
             btn.classList.add('mic-active');
 
             const source = micCtx.createMediaStreamSource(stream);
-            
+
             // 2. ขยายขนาด Buffer เป็น 4096 เพื่อลดการส่งข้อมูลยิบย่อย (ช่วยลดภาระเซิร์ฟเวอร์และอาการกระตุก)
             scriptProcessor = micCtx.createScriptProcessor(4096, 1, 1);
 
@@ -151,7 +151,7 @@ async function toggleMic() {
 
             source.connect(scriptProcessor);
             scriptProcessor.connect(micCtx.destination);
-            
+
             const mute = micCtx.createGain();
             mute.gain.value = 0;
             scriptProcessor.connect(mute);
@@ -176,21 +176,21 @@ function playAudioStream(buffer) {
         const int16 = view.getInt16(i * 2, true);
         float32[i] = int16 < 0 ? int16 / 0x8000 : int16 / 0x7FFF;
     }
-    
+
     // 3. บังคับเล่นเสียงที่ 44100 Hz (ให้ตรงกับตอนส่ง) เบราว์เซอร์จะ Resample ให้อัตโนมัติถ้าเครื่องผู้ฟังใช้เรทอื่น
     const audioBuf = audioCtx.createBuffer(1, float32.length, 44100);
     audioBuf.getChannelData(0).set(float32);
     const src = audioCtx.createBufferSource();
     src.buffer = audioBuf;
     src.connect(audioCtx.destination);
-    
+
     const currentTime = audioCtx.currentTime;
-    
+
     // 4. ระบบ Jitter Buffer: ถ้าเสียงมาไม่ทัน หรือดีเลย์สะสมมากเกินไป ให้หน่วงเวลาไว้ 150ms เพื่อรอแพ็กเกจถัดไป
     if (nextAudioTime < currentTime || nextAudioTime > currentTime + 1) {
-        nextAudioTime = currentTime + 0.15; 
+        nextAudioTime = currentTime + 0.15;
     }
-    
+
     src.start(nextAudioTime);
     nextAudioTime += audioBuf.duration;
 }
@@ -202,14 +202,14 @@ function renderLobby(rooms) {
         <div class="room-cards">
             <div class="left-ticket">
                 <strong>Title : ${r.name}</strong><br>
-                <small style="opacity:0.5">ID: ${r.id.substring(0,8)}</small><br>
+                <small style="opacity:0.5">ID: ${r.id.substring(0, 8)}</small><br>
                 <small>Capacity : ${r.count}/${r.max} ${r.locked ? '🔒' : ''}</small>
             </div>
             <div class="right-ticket">
-                ${r.count < r.max 
-                    ? `<button onclick="prepareJoin('${r.id}', ${r.locked})" class="button-join">JOIN</button>`
-                    : `<div class="button-join-red">FULL</div>`
-                }
+                ${r.count < r.max
+            ? `<button onclick="prepareJoin('${r.id}', ${r.locked})" class="button-join">JOIN</button>`
+            : `<div class="button-join-red">FULL</div>`
+        }
             </div>
         </div>`).join('') : '<div style="grid-column: 1/-1; text-align:center;">No rooms available</div>';
 }
@@ -233,10 +233,10 @@ function confirmJoin() {
 async function initAudio() {
     if (Tone.context.state === 'running') return;
     await Tone.start();
-    
+
     // สร้าง Reverb และเพิ่มความดังรวม (Output Gain)
     const reverb = new Tone.Reverb(0.4).toDestination();
-    
+
     // 1. Piano - ปรับให้ดังขึ้น
     toneInstruments.piano = new Tone.Sampler({
         urls: {
@@ -257,25 +257,25 @@ async function initAudio() {
             "Ab7": "Ab7.mp3", "Bb7": "Bb7.mp3", "Db7": "Db7.mp3", "Eb7": "Eb7.mp3", "Gb7": "Gb7.mp3", "Db8": "Db8.mp3"
         },
         baseUrl: "/sounds/piano/",
-        
+
     }).connect(reverb);
-    
+
     // ตั้งค่าความดังเปียโน (หน่วยเป็น dB)
-    toneInstruments.piano.volume.value = 20; 
+    toneInstruments.piano.volume.value = 20;
 
     // 2. Drums - ปรับให้กระแทกกระทั้นขึ้น
     toneInstruments.drums = new Tone.Players({
-        "kick": "kick.mp3", "snare": "snare.mp3", "closehihat": "closehihat.mp3", 
+        "kick": "kick.mp3", "snare": "snare.mp3", "closehihat": "closehihat.mp3",
         "openhihat": "openhihat.mp3", "tom1": "tom1.mp3", "tom2": "tom2.mp3",
         "floor": "floor.mp3", "crash": "crash.mp3", "ride": "ride.mp3"
-    }, { 
+    }, {
         baseUrl: "/sounds/drum/",
-        
+
     }).toDestination();
-    
+
     // ตั้งค่าความดังกลอง
-    toneInstruments.drums.volume.value = 5; 
-    
+    toneInstruments.drums.volume.value = 5;
+
     // 3. Guitar & Bass - ถ้าต้องการความกระหึ่ม
     toneInstruments.guitar = new Tone.Sampler({
         urls: { "E2": "E2.mp3", "A2": "A2.mp3", "D3": "D3.mp3", "G3": "G3.mp3", "B3": "B3.mp3", "E4": "E4.mp3" },
@@ -321,20 +321,20 @@ function renderInstrument(type) {
     document.getElementById('sustainBtn').style.display = (type === 'Piano') ? 'flex' : 'none';
 
     if (type === 'Piano') {
-        const p = document.createElement('div'); 
+        const p = document.createElement('div');
         p.className = 'piano';
-        
+
         // ตัวแปรเก็บสถานะนิ้วที่กำลังสัมผัสอยู่ (ป้องกันไม่ให้โน้ตเล่นซ้ำรัวๆ เวลาลากผ่านปุ่มเดิม)
         let activeTouches = {};
 
-        const keys = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+        const keys = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
         for (let i = 0; i < 36; i++) {
-            const midi = i + 48; 
+            const midi = i + 48;
             const k = document.createElement('div');
-            k.className = `key ${keys[i%12].includes('#') ? 'black' : 'white'}`;
+            k.className = `key ${keys[i % 12].includes('#') ? 'black' : 'white'}`;
             k.id = `note-${midi}`;
             if (KeyLabels[midi]) k.setAttribute('data-key', KeyLabels[midi]);
-            
+
             // สำหรับเมาส์คลิกบน Desktop
             k.onmousedown = () => {
                 playLocalNote(midi, 'Piano');
@@ -343,7 +343,7 @@ function renderInstrument(type) {
 
             // กดครั้งแรก (Touch Start)
             k.addEventListener('touchstart', (e) => {
-                e.preventDefault(); 
+                e.preventDefault();
                 for (let j = 0; j < e.changedTouches.length; j++) {
                     const touch = e.changedTouches[j];
                     activeTouches[touch.identifier] = midi; // บันทึกว่านิ้วนี้กำลังกดโน้ตอะไรอยู่
@@ -366,7 +366,7 @@ function renderInstrument(type) {
                 if (el && el.classList.contains('key')) {
                     // ดึงเลข Midi จาก ID ของปุ่ม (เช่น "note-48" -> 48)
                     const midi = parseInt(el.id.replace('note-', ''));
-                    
+
                     // ถ้าโน้ตที่นิ้วแตะอยู่ ไม่ใช่โน้ตเดิม ให้เล่นเสียงใหม่
                     if (activeTouches[touch.identifier] !== midi) {
                         activeTouches[touch.identifier] = midi;
@@ -391,19 +391,19 @@ function renderInstrument(type) {
 
     } else if (type === 'Drum') {
         const c = document.createElement('div'); c.className = 'drum-kit';
-        ['kick','snare','closehihat','openhihat','tom1','tom2','floor','crash','ride'].forEach(d => {
-            const b = document.createElement('div'); 
-            b.className = 'drum-pad'; 
+        ['kick', 'snare', 'closehihat', 'openhihat', 'tom1', 'tom2', 'floor', 'crash', 'ride'].forEach(d => {
+            const b = document.createElement('div');
+            b.className = 'drum-pad';
             b.id = `drum-${d}`;
-            b.innerText = d; 
-            
+            b.innerText = d;
+
             b.onmousedown = () => {
                 playLocalNote(d, 'Drum');
                 triggerVisual({ instrument: 'Drum', note: d });
             };
 
             b.addEventListener('touchstart', (e) => {
-                e.preventDefault(); 
+                e.preventDefault();
                 playLocalNote(d, 'Drum');
                 triggerVisual({ instrument: 'Drum', note: d });
             }, { passive: false });
@@ -417,7 +417,7 @@ function renderInstrument(type) {
 function renderChat(d) {
     const b = document.getElementById('chatHistory');
     const isMe = d.senderId === myId; // เช็คผ่าน ID
-    
+
     b.innerHTML += `
         <div style="text-align:${isMe ? 'right' : 'left'}; margin-bottom: 10px;">
             ${!isMe ? `<div class="sender-name" style="font-weight:bold; color:var(--main);">${d.senderName}</div>` : ''}
@@ -435,89 +435,81 @@ function renderMembers(users) {
 }
 
 // --- 10. ฟังก์ชันสนับสนุนอื่นๆ (Helper Functions) ---
-function login() { 
-    myName = document.getElementById('username').value.trim(); 
-    if (myName) connect(); 
-    else notify("Name required", "error"); 
+function login() {
+    myName = document.getElementById('username').value.trim();
+    if (myName) connect();
+    else notify("Name required", "error");
 }
 
-function sendChat() { 
-    const t = document.getElementById('chatMsg'); 
-    if (t.value.trim()) { send('CHAT', t.value); t.value = ''; } 
+function sendChat() {
+    const t = document.getElementById('chatMsg');
+    if (t.value.trim()) { send('CHAT', t.value); t.value = ''; }
 }
 
 function handleChat(e) { if (e.key === 'Enter') sendChat(); }
 
-function switchScreen(id) { 
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); 
-    document.getElementById(id).classList.add('active'); 
+function switchScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
 }
 
-function closeModals() { 
-    document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); 
+function closeModals() {
+    document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
 }
 
-function showCreateModal() { 
-    document.getElementById('createModal').style.display = 'flex'; 
+function showCreateModal() {
+    document.getElementById('createModal').style.display = 'flex';
 }
 
-function createRoom() { 
-    send('CREATE_ROOM', { 
-        roomName: document.getElementById('newRoomName').value, 
-        password: document.getElementById('newRoomPass').value, 
-        capacity: document.getElementById('newRoomCap').value, 
-        instrument: document.getElementById('createInst').value 
-    }); 
-    closeModals(); 
+function createRoom() {
+    send('CREATE_ROOM', {
+        roomName: document.getElementById('newRoomName').value,
+        password: document.getElementById('newRoomPass').value,
+        capacity: document.getElementById('newRoomCap').value,
+        instrument: document.getElementById('createInst').value
+    });
+    closeModals();
 }
 
-function enterRoom(data) { 
-    document.getElementById('roomTitle').innerText = data.roomName; 
-    document.getElementById('roomInstSelect').value = data.instrument; 
-    document.getElementById('chatHistory').innerHTML = ''; 
-    switchScreen('room'); 
-    renderInstrument(data.instrument); 
-}
+function leaveRoom() {
+    send('LEAVE_ROOM', {});
+    switchScreen('lobby');
+    stopMic();
 
-function leaveRoom() { 
-    send('LEAVE_ROOM', {}); 
-    switchScreen('lobby'); 
-    stopMic(); 
-    
     // 🔥 เพิ่ม 2 บรรทัดนี้เพื่อรีเซ็ตสถานะ
-    currentInst = ""; 
-    document.getElementById('instrumentDeck').innerHTML = ''; 
+    currentInst = "";
+    document.getElementById('instrumentDeck').innerHTML = '';
 }
 
-function playLocalNote(note, inst) { 
-    const sus = (inst === 'Piano') ? isSustain : false; 
-    send('NOTE_PLAY', { note, instrument: inst, sustain: sus }); 
-    executeSound(note, inst, sus); 
+function playLocalNote(note, inst) {
+    const sus = (inst === 'Piano') ? isSustain : false;
+    send('NOTE_PLAY', { note, instrument: inst, sustain: sus });
+    executeSound(note, inst, sus);
 }
 
 function playRemoteNote(data) { executeSound(data.note, data.instrument, data.sustain); }
 
-function executeSound(note, inst, sus) { 
-    if (inst === 'Piano') SoundEngine.playPiano(note, sus); 
-    else if (inst === 'Drum') SoundEngine.playDrum(note); 
+function executeSound(note, inst, sus) {
+    if (inst === 'Piano') SoundEngine.playPiano(note, sus);
+    else if (inst === 'Drum') SoundEngine.playDrum(note);
     else if (inst === 'Guitar') SoundEngine.playGuitar(note);
     else if (inst === 'Bass') SoundEngine.playBass(note);
 }
 
-function triggerVisual(data) { 
-    let el; 
-    if (data.instrument === 'Piano') el = document.getElementById(`note-${data.note}`); 
-    else if (data.instrument === 'Drum') el = document.getElementById(`drum-${data.note}`); 
-    if (el) { 
-        el.classList.add('hit'); 
-        setTimeout(() => el.classList.remove('hit'), 200); 
-    } 
+function triggerVisual(data) {
+    let el;
+    if (data.instrument === 'Piano') el = document.getElementById(`note-${data.note}`);
+    else if (data.instrument === 'Drum') el = document.getElementById(`drum-${data.note}`);
+    if (el) {
+        el.classList.add('hit');
+        setTimeout(() => el.classList.remove('hit'), 200);
+    }
 }
 
-function toggleSustain() { 
-    isSustain = !isSustain; 
-    document.getElementById('sustainBtn').classList.toggle('sustain-active'); 
-    
+function toggleSustain() {
+    isSustain = !isSustain;
+    document.getElementById('sustainBtn').classList.toggle('sustain-active');
+
 }
 
 function changeInstrument(v) { send('CHANGE_INSTRUMENT', v); }
@@ -553,3 +545,52 @@ document.addEventListener('keydown', (e) => {
         triggerVisual({ instrument: currentInst, note: map[key] });
     }
 });
+
+// --- ฟังก์ชันสำหรับการคลิกเลือกเครื่องดนตรีแบบรูปภาพ ---
+function selectInstrument(inputId, value, element) {
+    // 1. อัปเดตค่าไปที่ <input type="hidden">
+    document.getElementById(inputId).value = value;
+
+    // 2. ลบคลาส active ออกจากเครื่องดนตรีตัวอื่นในแถวเดียวกัน
+    const parent = element.parentElement;
+    const options = parent.querySelectorAll('.inst-option');
+    options.forEach(opt => opt.classList.remove('active'));
+
+    // 3. เพิ่มคลาส active ให้กับตัวที่ถูกคลิก
+    element.classList.add('active');
+}
+
+// --- ฟังก์ชันสำหรับการเปลี่ยนเครื่องดนตรีใน Top Bar ของห้อง ---
+function selectRoomInstrument(value, element) {
+    // 1. อัปเดตค่าลงใน <input type="hidden">
+    document.getElementById('roomInstSelect').value = value;
+    
+    // 2. ลบคลาส active ออกจากตัวอื่น แล้วใส่ให้ตัวที่โดนคลิก
+    const parent = element.parentElement;
+    const options = parent.querySelectorAll('.inst-option');
+    options.forEach(opt => opt.classList.remove('active'));
+    element.classList.add('active');
+    
+    // 3. เรียกใช้ฟังก์ชันเดิมของคุณเพื่อส่งข้อมูลไป Server
+    changeInstrument(value);
+}
+
+// โค้ดเดิมของคุณ (แก้ไขนิดหน่อยเพื่ออัปเดต UI ให้ตรงกันตอนเข้าห้อง)
+function enterRoom(data) { 
+    document.getElementById('roomTitle').innerText = data.roomName; 
+    
+    // อัปเดต UI ตัวเลือกเครื่องดนตรีให้ตรงกับที่เลือกตอน Join/Create
+    document.getElementById('roomInstSelect').value = data.instrument; 
+    const options = document.querySelectorAll('.room-top-selector .inst-option');
+    options.forEach(opt => {
+        if (opt.getAttribute('data-inst') === data.instrument) {
+            opt.classList.add('active');
+        } else {
+            opt.classList.remove('active');
+        }
+    });
+
+    document.getElementById('chatHistory').innerHTML = ''; 
+    switchScreen('room'); 
+    renderInstrument(data.instrument); 
+}

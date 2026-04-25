@@ -10,7 +10,7 @@
 </head>
 
 <body>
-    
+
     <div class="container">
         <div id="notification-area"></div>
         <div id="home" class="screen active">
@@ -22,7 +22,7 @@
                             <span class="banner">ThamMozart</span>
                             <span class="logo-text">
                                 <blockquote>
-                                    </blockquote><br><br>
+                                </blockquote><br><br>
                                 -ThamMozart
                             </span>
 
@@ -59,7 +59,7 @@
 
 
         <div id="room" class="screen">
-            
+
             <div class="top-bar">
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <button onclick="leaveRoom()" style="background:transparent; font-size: 20px;">⬅</button>
@@ -67,14 +67,27 @@
                 </div>
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <label style="font-size: 0.8em; color: #aaa;">Instrument:</label>
-                    <select id="roomInstSelect" onchange="changeInstrument(this.value)"
-                        style="padding: 5px; background: #333; color: white; border: 1px solid #555;">
-                        <option value="Piano">Piano</option>
-                        <option value="Guitar">Guitar</option>
-                        <option value="Bass">Bass</option>
-                        <option value="Drum">Drum</option>
-                        <option value="Singer">Singer</option>
-                    </select>
+
+                    <input type="hidden" id="roomInstSelect" value="Piano">
+
+                    <div class="instrument-selector room-top-selector">
+                        <div class="inst-option active" data-inst="Piano" onclick="selectRoomInstrument('Piano', this)">
+                            <img src="assets/Select-instrument/piano.webp" class="inst-img-small"><br>Piano
+                        </div>
+                        <div class="inst-option" data-inst="Guitar" onclick="selectRoomInstrument('Guitar', this)">
+                            <img src="assets/Select-instrument/guitar.png" class="inst-img-small"><br>Guitar
+                        </div>
+                        <div class="inst-option" data-inst="Bass" onclick="selectRoomInstrument('Bass', this)">
+                            <img src="assets/Select-instrument/bass.png" class="inst-img-small"><br>Bass
+                        </div>
+                        <div class="inst-option" data-inst="Drum" onclick="selectRoomInstrument('Drum', this)">
+                            <img src="assets/Select-instrument/drum.png" class="inst-img-small"><br>Drum
+                        </div>
+                        <div class="inst-option" data-inst="Singer" onclick="selectRoomInstrument('Singer', this)">
+                            <img src="assets/Select-instrument/microphone.png" class="inst-img-small"><br>Singer
+                        </div>
+                    </div>
+
                 </div>
             </div>
 
@@ -83,15 +96,16 @@
                     <h4 style="margin:0 0 10px 0; color:#888;">MEMBERS</h4>
                     <div id="memberList"></div>
                 </div>
+                <div class="controls">
+                    <div class="circle-btn" id="micBtn" onclick="toggleMic()" title="Mic">Mic</div>
+                    <div class="circle-btn" id="sustainBtn" onclick="toggleSustain()" title="Sustain">Sus</div>
+                </div>
                 <div class="chat-panel">
                     <div class="chat-history" id="chatHistory"></div>
                     <div class="chat-input"><input type="text" id="chatMsg" placeholder="Type..."
                             onkeypress="handleChat(event)"><button onclick="sendChat()">➤</button></div>
                 </div>
-                <div class="controls">
-                    <div class="circle-btn" id="micBtn" onclick="toggleMic()" title="Mic">Mic</div>
-                    <div class="circle-btn" id="sustainBtn" onclick="toggleSustain()" title="Sustain">Sus</div>
-                </div>
+                
             </div>
 
             <div class="instrument-area" id="instrumentDeck"></div>
@@ -108,13 +122,28 @@
                     <div class="form-group"><label>Capacity</label><input type="number" id="newRoomCap" value="5"
                             min="1" max="10">
                     </div>
-                    <div class="form-group"><label>Instrument</label><select id="createInst">
-                            <option value="Piano">Piano</option>
-                            <option value="Guitar">Guitar</option>
-                            <option value="Bass">Bass</option>
-                            <option value="Drum">Drum</option>
-                            <option value="Singer">Singer</option>
-                        </select></div>
+                    <div class="form-group">
+                        <label>Instrument</label>
+
+                        <input type="hidden" id="createInst" value="Piano">
+                        <div class="instrument-selector">
+                            <div class="inst-option active" onclick="selectInstrument('createInst', 'Piano', this)">
+                                <img src="assets/Select-instrument/piano.webp" alt="Piano" class="inst-img"><br>Piano
+                            </div>
+                            <div class="inst-option" onclick="selectInstrument('createInst', 'Guitar', this)">
+                                <img src="assets/Select-instrument/guitar.png" alt="Guitar" class="inst-img"><br>Guitar
+                            </div>
+                            <div class="inst-option" onclick="selectInstrument('createInst', 'Bass', this)">
+                                <img src="assets/Select-instrument/bass.png" alt="Bass" class="inst-img"><br>Bass
+                            </div>
+                            <div class="inst-option" onclick="selectInstrument('createInst', 'Drum', this)">
+                                <img src="assets/Select-instrument/drum.png" alt="Drum" class="inst-img"><br>Drum
+                            </div>
+                            <div class="inst-option" onclick="selectInstrument('createInst', 'Singer', this)">
+                                <img src="assets/Select-instrument/microphone.png" alt="Singer" class="inst-img"><br>Singer
+                            </div>
+                        </div>
+                    </div>
                     <div style="text-align: right; margin-top: 20px;"><button class="red"
                             onclick="closeModals()">Cancel</button> <button onclick="createRoom()">Create</button></div>
                 </div>
@@ -129,13 +158,27 @@
 
                     <div class="form-group" id="passField"><label>Password</label><input type="password" id="joinPass">
                     </div>
-                    <div class="form-group"><label>Instrument</label><select id="joinInst">
-                            <option value="Piano">Piano</option>
-                            <option value="Guitar">Guitar</option>
-                            <option value="Bass">Bass</option>
-                            <option value="Drum">Drum</option>
-                            <option value="Singer">Singer</option>
-                        </select></div>
+                    <div class="form-group">
+                        <label>Instrument</label>
+                        <input type="hidden" id="joinInst" value="Piano">
+                        <div class="instrument-selector">
+                            <div class="inst-option active" onclick="selectInstrument('joinModal', 'Piano', this)">
+                                <img src="assets/Select-instrument/piano.webp" alt="Piano" class="inst-img"><br>Piano
+                            </div>
+                            <div class="inst-option" onclick="selectInstrument('joinModal', 'Guitar', this)">
+                                <img src="assets/Select-instrument/guitar.png" alt="Guitar" class="inst-img"><br>Guitar
+                            </div>
+                            <div class="inst-option" onclick="selectInstrument('joinModal', 'Bass', this)">
+                                <img src="assets/Select-instrument/bass.png" alt="Bass" class="inst-img"><br>Bass
+                            </div>
+                            <div class="inst-option" onclick="selectInstrument('joinModal', 'Drum', this)">
+                                <img src="assets/Select-instrument/drum.png" alt="Drum" class="inst-img"><br>Drum
+                            </div>
+                            <div class="inst-option" onclick="selectInstrument('joinModal', 'Singer', this)">
+                                <img src="assets/Select-instrument/microphone.png" alt="Singer" class="inst-img"><br>Singer
+                            </div>
+                        </div>
+                    </div>
                     <div style="text-align: right; margin-top: 20px;"><button class="red"
                             onclick="closeModals()">Cancel</button> <button onclick="confirmJoin()">Join</button></div>
                 </div>
