@@ -69,12 +69,10 @@ function connect() {
     ws = new WebSocket((location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + window.location.host);
     ws.binaryType = 'arraybuffer';
     
-
     ws.onopen = () => {
         notify("Connected", "success");
         send('LOGIN', { name: myName });
         switchScreen('lobby');
-        initAudio();
     };
 
     ws.onmessage = (event) => {
@@ -571,10 +569,15 @@ function renderMembers(users) {
 }
 
 // --- 10. ฟังก์ชันสนับสนุนอื่นๆ (Helper Functions) ---
-function login() {
+async function login() {
     myName = document.getElementById('username').value.trim();
-    if (myName) connect();
-    else notify("Name required", "error");
+    if (!myName) return notify("Please enter your name", "error");
+    if (Tone.context.state !== 'running') {
+        await Tone.start();
+    }
+    initAudio(); 
+
+    connect();
 }
 
 function sendChat() {
