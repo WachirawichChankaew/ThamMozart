@@ -116,10 +116,9 @@ async function toggleMic() {
 
     if (!isMicOn) {
         try {
-            // 1. ยกเลิกการบังคับ Sample Rate ปล่อยให้เบราว์เซอร์ใช้ค่าที่เสถียรที่สุดของฮาร์ดแวร์ตัวเอง
-            if (!micCtx || micCtx.state === 'closed') {
-                micCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
+            // 1. 🔥 ใช้ AudioContext ของ Tone.js เสมอ ป้องกันการสร้าง Context ซ้อนทับที่ทำให้เบราว์เซอร์รวนและเสียงแตก
+            micCtx = Tone.context.rawContext; 
+
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
                     echoCancellation: true,
@@ -132,6 +131,7 @@ async function toggleMic() {
             btn.classList.add('mic-active');
 
             const source = micCtx.createMediaStreamSource(stream);
+
             scriptProcessor = micCtx.createScriptProcessor(4096, 1, 1);
 
             scriptProcessor.onaudioprocess = (e) => {
@@ -141,11 +141,12 @@ async function toggleMic() {
                 const buffer = new ArrayBuffer(4 + (input.length * 2));
                 const view = new DataView(buffer);
                 
-                // ฝังค่า Sample Rate ส่งไปให้คนฟังด้วย
+                // ฝังค่า Sample Rate ให้ผู้ฟัง
                 view.setFloat32(0, micCtx.sampleRate, true); 
 
                 for (let i = 0; i < input.length; i++) {
-                    let s = Math.max(-1, Math.min(1, input[i]));
+                    // 2. 🔥 ลด Gain (ความดัง) ลงเหลือ 0.8 ก่อนบีบอัด เพื่อป้องกันเสียง Clip/Peak เวลาตะโกน
+                    let s = Math.max(-1, Math.min(1, input[i] * 0.8));
                     view.setInt16(4 + (i * 2), s < 0 ? s * 0x8000 : s * 0x7FFF, true);
                 }
                 ws.send(buffer);
@@ -165,7 +166,8 @@ async function toggleMic() {
 function stopMic() {
     if (micStream) micStream.getTracks().forEach(t => t.stop());
     if (scriptProcessor) { scriptProcessor.disconnect(); scriptProcessor = null; }
-    if (micCtx && micCtx.state !== 'closed') { micCtx.close(); micCtx = null; }
+    micCtx = null; 
+    
     isMicOn = false;
     document.getElementById('micBtn').classList.remove('mic-active');
 }
@@ -174,31 +176,29 @@ function playAudioStream(buffer) {
     const audioCtx = Tone.context.rawContext;
     const view = new DataView(buffer);
     
-    // 3. แกะค่า Sample Rate ของคนพูดออกมาจาก 4 ไบต์แรก
     const senderSampleRate = view.getFloat32(0, true);
+    // เช็คว่า Sample rate สมเหตุสมผลหรือไม่
+    if (senderSampleRate < 8000 || senderSampleRate > 96000) return;
     
-    // อ่านข้อมูลเสียงที่เหลือ
     const float32 = new Float32Array((buffer.byteLength - 4) / 2);
     for (let i = 0; i < float32.length; i++) {
         const int16 = view.getInt16(4 + (i * 2), true);
         float32[i] = int16 < 0 ? int16 / 0x8000 : int16 / 0x7FFF;
     }
 
-    // 4. สร้างเสียงให้ตรงกับ Sample Rate ต้นฉบับเป๊ะๆ (แก้ปัญหาเสียงยืด/แตก)
-    // เพิ่มการดัก Error เผื่อได้รับค่า Sample Rate ที่ไม่ถูกต้อง
-    if (senderSampleRate < 8000 || senderSampleRate > 96000) return;
-    
     const audioBuf = audioCtx.createBuffer(1, float32.length, senderSampleRate);
     audioBuf.getChannelData(0).set(float32);
+    
     const src = audioCtx.createBufferSource();
     src.buffer = audioBuf;
     src.connect(audioCtx.destination);
 
     const currentTime = audioCtx.currentTime;
 
-    // 5. ปรับระบบ Jitter Buffer ให้ฉลาดขึ้น ถ้าเน็ตกระตุกจนเสียงขาด จะรีเซ็ตคิวเล่นใหม่แบบนุ่มนวล
-    if (nextAudioTime < currentTime) {
-        nextAudioTime = currentTime + 0.1; 
+    // 4. 🔥 Jitter Buffer: เพิ่มเวลาหน่วงเป็น 0.25 วิ (250ms) เพื่อให้มีเสียงตุนไว้ในคิว
+    // ป้องกันปัญหาเน็ตแกว่งแล้วเสียงขาดหายจนฟังดูเหมือนเสียงแตก
+    if (nextAudioTime < currentTime || nextAudioTime > currentTime + 1.0) {
+        nextAudioTime = currentTime + 0.25; 
     }
 
     src.start(nextAudioTime);
