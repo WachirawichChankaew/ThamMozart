@@ -68,6 +68,7 @@ document.addEventListener('keydown', (e) => {
 function connect() {
     ws = new WebSocket((location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + window.location.host);
     ws.binaryType = 'arraybuffer';
+    
 
     ws.onopen = () => {
         notify("Connected", "success");
@@ -276,17 +277,24 @@ async function initAudio() {
     // ตั้งค่าความดังกลอง
     toneInstruments.drums.volume.value = 5;
 
-    // 3. Guitar & Bass - ถ้าต้องการความกระหึ่ม
-    toneInstruments.guitar = new Tone.Sampler({
-        urls: { "E2": "E2.mp3", "A2": "A2.mp3", "D3": "D3.mp3", "G3": "G3.mp3", "B3": "B3.mp3", "E4": "E4.mp3" },
-        baseUrl: "/sounds/guitar/"
-    }).connect(reverb);
+    // 3. Guitar - 6 strings using Guitar_E, A, D, G, B, E files
+    toneInstruments.guitar = new Tone.Players({
+        "E2": "Guitar_E.mp3",
+        "A2": "Guitar_A.mp3",
+        "D3": "Guitar_D.mp3",
+        "G3": "Guitar_G.mp3",
+        "B3": "Guitar_B.mp3",
+        "E4": "Guitar_C.mp3"  // high E uses Guitar_C (closest available high tone)
+    }, { baseUrl: "/sounds/guitar/" }).connect(reverb);
     toneInstruments.guitar.volume.value = 8;
 
-    toneInstruments.bass = new Tone.Sampler({
-        urls: { "E1": "E1.mp3", "A1": "A1.mp3", "D2": "D2.mp3", "G2": "G2.mp3" },
-        baseUrl: "/sounds/bass/"
-    }).toDestination();
+    // 4. Bass - 4 strings using bass1~4 files
+    toneInstruments.bass = new Tone.Players({
+        "G2": "bass1.mp3",
+        "D2": "bass2.mp3",
+        "A1": "bass3.mp3",
+        "E1": "bass4.mp3"
+    }, { baseUrl: "/sounds/bass/" }).toDestination();
     toneInstruments.bass.volume.value = 12;
 }
 
@@ -297,15 +305,17 @@ const SoundEngine = {
         }
     },
     playGuitar: (idx) => {
-        const notes = ["E2", "A2", "D3", "G3", "B3", "E4"];
-        if (toneInstruments.guitar?.loaded) {
-            toneInstruments.guitar.triggerAttackRelease(notes[idx], "2n");
+        const keys = ["E2", "A2", "D3", "G3", "B3", "E4"];
+        const key = keys[idx];
+        if (key && toneInstruments.guitar?.has(key)) {
+            toneInstruments.guitar.player(key).start();
         }
     },
     playBass: (idx) => {
-        const notes = ["E1", "A1", "D2", "G2"];
-        if (toneInstruments.bass?.loaded) {
-            toneInstruments.bass.triggerAttackRelease(notes[idx], "2n");
+        const keys = ["G2", "D2", "A1", "E1"];
+        const key = keys[idx];
+        if (key && toneInstruments.bass?.has(key)) {
+            toneInstruments.bass.player(key).start();
         }
     },
     playDrum: (type) => {
@@ -432,6 +442,111 @@ function renderInstrument(type) {
             c.appendChild(b);
         });
         deck.appendChild(c);
+
+    // ==========================================
+    // --- ส่วนของ กีตาร์ (Guitar) 6 สาย ---
+    // ==========================================
+    } else if (type === 'Guitar') {
+        const labels = ['E(1)', 'A(2)', 'D(3)', 'G(4)', 'B(5)', 'E(6)'];
+        
+        const board = document.createElement('div');
+        board.className = 'instrument-board guitar-board';
+        
+        labels.forEach((label, i) => {
+            const row = document.createElement('div');
+            row.className = 'string-row';
+            
+            const lb = document.createElement('div');
+            lb.className = 'string-label';
+            lb.innerText = label;
+            
+            const lineContainer = document.createElement('div');
+            lineContainer.className = 'string-line-container';
+            
+            const line = document.createElement('div');
+            line.className = 'string-line';
+            line.id = `guitar-string-${i}`; // ID สำหรับเรียกเอฟเฟกต์สั่นของกีตาร์
+            
+            const play = () => {
+                playLocalNote(i, 'Guitar');
+                triggerVisual({ instrument: 'Guitar', note: i });
+            };
+            
+            lineContainer.onmousedown = play;
+            lineContainer.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                play();
+            }, { passive: false });
+            
+            lineContainer.appendChild(line);
+            row.appendChild(lb);
+            row.appendChild(lineContainer);
+            board.appendChild(row);
+        });
+        
+        deck.appendChild(board);
+
+    // ==========================================
+    // --- ส่วนของ เบส (Bass) 4 สาย ---
+    // ==========================================
+    } else if (type === 'Bass') {
+        const labels = ['E(1)', 'A(2)', 'D(3)', 'G(4)'];
+        
+        const board = document.createElement('div');
+        board.className = 'instrument-board bass-board';
+        
+        labels.forEach((label, i) => {
+            const row = document.createElement('div');
+            row.className = 'string-row';
+            
+            const lb = document.createElement('div');
+            lb.className = 'string-label';
+            lb.innerText = label;
+            
+            const lineContainer = document.createElement('div');
+            lineContainer.className = 'string-line-container';
+            
+            const line = document.createElement('div');
+            line.className = 'string-line';
+            line.id = `bass-string-${i}`; // ID สำหรับเรียกเอฟเฟกต์สั่นของเบส
+            
+            const play = () => {
+                playLocalNote(i, 'Bass');
+                triggerVisual({ instrument: 'Bass', note: i });
+            };
+            
+            lineContainer.onmousedown = play;
+            lineContainer.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                play();
+            }, { passive: false });
+            
+            lineContainer.appendChild(line);
+            row.appendChild(lb);
+            row.appendChild(lineContainer);
+            board.appendChild(row);
+        });
+        
+        deck.appendChild(board);
+    } else if (type === 'Singer') {
+        const board = document.createElement('div');
+        // ใช้คลาส instrument-board ร่วมกับกีตาร์และเบสเพื่อให้ขนาดกล่องเท่ากัน
+        board.className = 'instrument-board singer-board'; 
+        
+        // หัวข้อ
+        const title = document.createElement('h3');
+        title.className = 'singer-title';
+        title.innerText = 'Lyrics';
+        
+        // ช่องใส่เนื้อเพลง
+        const textArea = document.createElement('textarea');
+        textArea.className = 'singer-lyrics-input';
+        textArea.placeholder = 'พิมพ์หรือวางเนื้อเพลงที่นี่...';
+        
+        // ประกอบร่าง
+        board.appendChild(title);
+        board.appendChild(textArea);
+        deck.appendChild(board);
     }
 }
 // --- 9. ระบบแชทและสมาชิก (Chat & Members) ---
@@ -521,6 +636,19 @@ function triggerVisual(data) {
     let el;
     if (data.instrument === 'Piano') el = document.getElementById(`note-${data.note}`);
     else if (data.instrument === 'Drum') el = document.getElementById(`drum-${data.note}`);
+    else if (data.instrument === 'Guitar') {
+        const ripple = document.getElementById(`ripple-guitar-${data.note}`);
+        const row = document.getElementById(`guitar-string-${data.note}`);
+        if (ripple) { ripple.classList.remove('active'); void ripple.offsetWidth; ripple.classList.add('active'); }
+        if (row) { const line = row.querySelector('.string-line'); if (line) { line.style.boxShadow = '0 0 12px #fff'; setTimeout(() => line.style.boxShadow = '', 300); } }
+        return;
+    } else if (data.instrument === 'Bass') {
+        const ripple = document.getElementById(`ripple-bass-${data.note}`);
+        const row = document.getElementById(`bass-string-${data.note}`);
+        if (ripple) { ripple.classList.remove('active'); void ripple.offsetWidth; ripple.classList.add('active'); }
+        if (row) { const line = row.querySelector('.string-line'); if (line) { line.style.boxShadow = '0 0 16px #fff'; setTimeout(() => line.style.boxShadow = '', 400); } }
+        return;
+    }
     if (el) {
         el.classList.add('hit');
         setTimeout(() => el.classList.remove('hit'), 200);

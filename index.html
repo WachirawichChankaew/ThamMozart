@@ -97,15 +97,26 @@
                     <div id="memberList"></div>
                 </div>
                 <div class="controls">
-                    <div class="circle-btn" id="micBtn" onclick="toggleMic()" title="Mic">Mic</div>
-                    <div class="circle-btn" id="sustainBtn" onclick="toggleSustain()" title="Sustain">Sus</div>
+                    <div class="circle-btn" id="micBtn" onclick="toggleMic()" title="Mic">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                            <path
+                                d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+                        </svg>
+                    </div>
+
+                    <div class="circle-btn" id="sustainBtn" onclick="toggleSustain()" title="Sustain">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                        </svg>
+                    </div>
                 </div>
                 <div class="chat-panel">
                     <div class="chat-history" id="chatHistory"></div>
-                    <div class="chat-input"><input type="text" id="chatMsg" placeholder="Type..."
+                    <div class="chat-input"><input type="text" id="chatMsg" placeholder="พิมพ์ข้อความ"
                             onkeypress="handleChat(event)"><button onclick="sendChat()">➤</button></div>
                 </div>
-                
+
             </div>
 
             <div class="instrument-area" id="instrumentDeck"></div>
@@ -140,7 +151,8 @@
                                 <img src="assets/Select-instrument/drum.png" alt="Drum" class="inst-img"><br>Drum
                             </div>
                             <div class="inst-option" onclick="selectInstrument('createInst', 'Singer', this)">
-                                <img src="assets/Select-instrument/microphone.png" alt="Singer" class="inst-img"><br>Singer
+                                <img src="assets/Select-instrument/microphone.png" alt="Singer"
+                                    class="inst-img"><br>Singer
                             </div>
                         </div>
                     </div>
@@ -175,7 +187,8 @@
                                 <img src="assets/Select-instrument/drum.png" alt="Drum" class="inst-img"><br>Drum
                             </div>
                             <div class="inst-option" onclick="selectInstrument('joinInst', 'Singer', this)">
-                                <img src="assets/Select-instrument/microphone.png" alt="Singer" class="inst-img"><br>Singer
+                                <img src="assets/Select-instrument/microphone.png" alt="Singer"
+                                    class="inst-img"><br>Singer
                             </div>
                         </div>
                     </div>
