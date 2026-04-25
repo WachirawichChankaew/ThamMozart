@@ -116,9 +116,16 @@ async function toggleMic() {
 
     if (!isMicOn) {
         try {
-            // 1. สร้าง AudioContext แยก ไม่บังคับเรทเสียง ปล่อยให้เบราว์เซอร์เลือกค่าที่ดีที่สุด
-            if (!micCtx || micCtx.state === 'closed') {
-                micCtx = new (window.AudioContext || window.webkitAudioContext)();
+            // 🔥 1. บังคับลด Sample Rate ลงเหลือ 22050 Hz (ประหยัดเน็ต 50%)
+            // ช่วยลดอาการเสียงขาดกระตุกเวลาเน็ตแกว่งได้อย่างมหาศาล
+            if (!micCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                try {
+                    micCtx = new AudioContext({ sampleRate: 22050 });
+                } catch (e) {
+                    // เผื่อ Safari รุ่นเก่าไม่รองรับการบังคับ Sample Rate ให้ใช้ค่าเริ่มต้น
+                    micCtx = new AudioContext(); 
+                }
             }
             if (micCtx.state === 'suspended') await micCtx.resume();
 
@@ -135,21 +142,23 @@ async function toggleMic() {
 
             const source = micCtx.createMediaStreamSource(stream);
             
-            
-            scriptProcessor = micCtx.createScriptProcessor(8192, 1, 1);
+            // 🔥 2. ปรับก้อนเสียงกลับมาเป็น 4096 เพื่อให้ส่งได้ถี่ยิ่งขึ้น ข้อมูลจะไม่ไปกระจุกตัว
+            scriptProcessor = micCtx.createScriptProcessor(4096, 1, 1);
 
             scriptProcessor.onaudioprocess = (e) => {
                 if (!isMicOn || ws.readyState !== 1) return;
                 const input = e.inputBuffer.getChannelData(0);
                 
-                // แนบค่า Sample Rate (4 ไบต์แรก) ส่งไปให้เพื่อนด้วย
                 const buffer = new ArrayBuffer(4 + (input.length * 2));
                 const view = new DataView(buffer);
                 view.setFloat32(0, micCtx.sampleRate, true); 
 
                 for (let i = 0; i < input.length; i++) {
-                    // 2. 🔥 สำคัญ: ลดความดังลงเหลือ 70% (0.7) เพื่อป้องกันเสียงแตกเวลาพูดดังๆ (Clipping)
-                    let s = Math.max(-1, Math.min(1, input[i] * 0.7));
+                    // ใช้ if-else คุมเสียงแตกแทน Math.max จะประมวลผลเร็วกว่ามาก
+                    let s = input[i] * 0.8; 
+                    if (s > 1) s = 1;
+                    else if (s < -1) s = -1;
+                    
                     view.setInt16(4 + (i * 2), s < 0 ? s * 0x8000 : s * 0x7FFF, true);
                 }
                 ws.send(buffer);
@@ -158,7 +167,6 @@ async function toggleMic() {
             source.connect(scriptProcessor);
             scriptProcessor.connect(micCtx.destination);
 
-            // ปิดเสียงตัวเองไม่ให้สะท้อนกลับ
             const mute = micCtx.createGain();
             mute.gain.value = 0;
             scriptProcessor.connect(mute);
@@ -202,15 +210,15 @@ function playAudioStream(buffer) {
 
     const currentTime = audioCtx.currentTime;
 
-    // 🔥 ระบบแก้เสียงกระตุก (Advanced Jitter Buffer)
-    // 1. ถ้าเสียงมาไม่ทัน (คิวแห้ง) ให้หน่วงเวลาเล่นออกไป 0.4 วินาที เพื่อรอให้ก้อนต่อไปมาต่อคิวทัน
+    // 🔥 3. ระบบ Jitter Buffer ที่แข็งแกร่งขึ้น
+    // หน่วงเวลาเพิ่มเป็น 0.5 วินาที เพื่อสร้าง "คิวเสียงสำรอง" ให้ลำโพง
+    // ถ้าเน็ตกระตุก ลำโพงก็จะยังเอาคิวที่ตุนไว้มาเล่นได้ เสียงก็จะไม่ขาด
     if (nextAudioTime < currentTime) {
-        nextAudioTime = currentTime + 0.4; 
+        nextAudioTime = currentTime + 0.5; 
     } 
-    // 2. ถ้าคิวเสียงยาวเกินไป (สะสมจนดีเลย์เกิน 1.5 วินาที) ให้หั่นคิวทิ้งแล้วรีเซ็ตใหม่ 
-    // ป้องกันอาการพูดไปตั้งนานแล้วเพื่อนเพิ่งได้ยิน
-    else if (nextAudioTime > currentTime + 1.5) {
-        nextAudioTime = currentTime + 0.4;
+    // ถ้าคิวเริ่มดีเลย์สะสมจนภาพกับเสียงไม่ตรงกันเกิน 2 วิ ให้เคลียร์ทิ้งและเริ่มใหม่
+    else if (nextAudioTime > currentTime + 2.0) {
+        nextAudioTime = currentTime + 0.5;
     }
 
     src.start(nextAudioTime);
