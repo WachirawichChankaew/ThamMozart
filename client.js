@@ -276,7 +276,7 @@ function renderChat(d) {
 
 // --- 8. ระบบเครื่องดนตรี (Audio Engine) ---
 async function initAudio() {
-    if (Tone.context.state === 'running') return;
+    if (toneInstruments.piano) return;
 
     const reverb = new Tone.Reverb(0.4).toDestination();
 
