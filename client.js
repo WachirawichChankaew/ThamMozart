@@ -1,7 +1,8 @@
 /**
- * client.js - ThamMozart Client Logic (WebRTC Edition)
+ * client.js - ThamMozart Client Logic (Ultimate WebRTC & UI Edition)
  */
 
+// --- 1. ระบบแจ้งเตือน (Notifications) ---
 function notify(msg, type = 'info') {
     const container = document.getElementById('notification-area');
     const toast = document.createElement('div');
@@ -11,14 +12,14 @@ function notify(msg, type = 'info') {
     setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 4000);
 }
 
-// --- Global States ---
+// --- 2. ตัวแปรสถานะ (Global States) ---
 let ws;
 let myName = "", currentInst = "", selectedRoom = "", myId = "";
 let micStream = null, isMicOn = false;
-let isSustain = false;
+let isSustain = false, nextAudioTime = 0;
 let toneInstruments = {};
 
-// --- WebRTC Variables ---
+// WebRTC Variables (สำหรับระบบไมค์)
 let peer = null;
 let myPeerId = null;
 let activeCalls = {};
@@ -35,6 +36,7 @@ guitarNotes.forEach(n => {
     guitarAudios[n] = audio;
 });
 
+// --- 3. การตั้งค่าปุ่มกด (Input Mapping) ---
 const KeyMaps = {
     'Piano': {
         'z': 48, 's': 49, 'x': 50, 'd': 51, 'c': 52, 'v': 53, 'g': 54, 'b': 55, 'h': 56, 'n': 57, 'j': 58, 'm': 59,
@@ -56,13 +58,18 @@ const KeyLabels = {
     72: 'I', 73: '9', 74: 'O', 75: '0', 76: 'P', 77: '[', 78: '=', 79: ']'
 };
 
+// --- 4. การจัดการคีย์บอร์ด (Event Listeners) ---
 document.addEventListener('keydown', (e) => {
     const currentScreen = document.querySelector('.screen.active');
     if (!currentScreen || currentScreen.id !== 'room') return;
     if (!currentInst || document.getElementById('chatMsg') === document.activeElement) return;
 
     const key = e.key.toLowerCase();
-    if (currentInst === 'Piano' && key === ' ') { toggleSustain(); return; }
+
+    if (currentInst === 'Piano' && key === ' ') {
+        toggleSustain();
+        return;
+    }
 
     const map = KeyMaps[currentInst];
     if (map && map[key] !== undefined) {
@@ -71,23 +78,38 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
+// --- 5. การเชื่อมต่อ WebSocket ---
 function connect() {
     ws = new WebSocket((location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + window.location.host);
+
     ws.onopen = () => {
         notify("Connected", "success");
         send('LOGIN', { name: myName });
         switchScreen('lobby');
     };
-    ws.onmessage = (event) => { try { handleServerMessage(JSON.parse(event.data)); } catch (e) { } };
-    ws.onclose = () => { notify("Disconnected", "error"); stopMic(); setTimeout(connect, 3000); };
+
+    ws.onmessage = (event) => {
+        try { handleServerMessage(JSON.parse(event.data)); } catch (e) { }
+    };
+
+    ws.onclose = () => {
+        notify("Disconnected", "error");
+        stopMic();
+        setTimeout(connect, 3000);
+    };
 }
 
-function send(type, payload) { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type, payload })); }
+function send(type, payload) {
+    if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type, payload }));
+}
 
 function handleServerMessage(msg) {
     switch (msg.type) {
         case 'UPDATE_LOBBY': renderLobby(msg.payload); break;
-        case 'JOIN_SUCCESS': myId = msg.payload.myId; enterRoom(msg.payload); break;
+        case 'JOIN_SUCCESS':
+            myId = msg.payload.myId; 
+            enterRoom(msg.payload);
+            break;
         case 'UPDATE_MEMBERS': renderMembers(msg.payload); break;
         case 'CHAT': renderChat(msg.payload); break;
         case 'NOTE_PLAY': triggerVisual(msg.payload); playRemoteNote(msg.payload); break;
@@ -96,7 +118,7 @@ function handleServerMessage(msg) {
     }
 }
 
-// --- Login & WebRTC Setup ---
+// --- 6. ระบบไมโครโฟน WebRTC (ลื่นไหล ไม่กระตุก) ---
 async function login() {
     myName = document.getElementById('username').value.trim();
     if (!myName) { notify("Name required", "error"); return; }
@@ -105,7 +127,7 @@ async function login() {
         await Tone.start();
         await initAudio(); 
 
-        // 1. ขอสิทธิ์ไมค์ทันที แต่ "Mute" ปิดเสียงไว้ก่อนเป็นค่าเริ่มต้น
+        // ขอสิทธิ์ไมค์ทันที แต่ปิดเสียงไว้ก่อน (Mute)
         micStream = await navigator.mediaDevices.getUserMedia({
             audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
         });
@@ -113,25 +135,24 @@ async function login() {
             micStream.getAudioTracks()[0].enabled = false; 
         }
 
-        // 2. สร้าง WebRTC Connection (PeerJS)
+        // สร้างรหัสเชื่อมต่อเสียง
         peer = new Peer();
         peer.on('open', (id) => {
             myPeerId = id;
-            connect(); // ต่อเซิร์ฟเวอร์หลักหลังได้ Peer ID แล้ว
+            connect(); 
         });
 
-        // 3. รอรับสายจากเพื่อนเวลามีคนเข้ามาในห้อง
+        // รอรับสายจากเพื่อน
         peer.on('call', (call) => {
             call.answer(micStream);
             handleCall(call);
         });
 
     } catch (e) {
-        notify("Microphone is required. Error: " + e.message, "error");
+        notify("Microphone is required: " + e.message, "error");
     }
 }
 
-// --- WebRTC Audio Logic ---
 function handleCall(call) {
     activeCalls[call.peer] = call;
     call.on('stream', (remoteStream) => {
@@ -169,7 +190,7 @@ function stopMic() {
     document.getElementById('micBtn').classList.remove('mic-active');
 }
 
-// --- UI Logic ---
+// --- 7. การแสดงผล UI (Lobby & Room) ---
 function renderLobby(rooms) {
     const list = document.getElementById('roomList');
     list.innerHTML = rooms.length ? rooms.map(r => `
@@ -196,7 +217,7 @@ function confirmJoin() {
         roomId: selectedRoom,
         password: document.getElementById('joinPass').value,
         instrument: document.getElementById('joinInst').value,
-        peerId: myPeerId // ส่ง Peer ID ไปให้เพื่อนเห็น
+        peerId: myPeerId
     });
     closeModals();
 }
@@ -207,7 +228,7 @@ function createRoom() {
         password: document.getElementById('newRoomPass').value,
         capacity: document.getElementById('newRoomCap').value,
         instrument: document.getElementById('createInst').value,
-        peerId: myPeerId // ส่ง Peer ID ไปให้เพื่อนเห็น
+        peerId: myPeerId
     });
     closeModals();
 }
@@ -217,7 +238,7 @@ function leaveRoom() {
     switchScreen('lobby');
     stopMic();
 
-    // ปิดสายสนทนาทั้งหมดเวลาออกจากห้อง
+    // วางสายทุกคนตอนออกจากห้อง
     Object.values(activeCalls).forEach(call => call.close());
     activeCalls = {};
     document.querySelectorAll('audio').forEach(a => a.remove());
@@ -226,15 +247,14 @@ function leaveRoom() {
     document.getElementById('instrumentDeck').innerHTML = '';
 }
 
-// --- Members & Call Dialing ---
 function renderMembers(users) {
     document.getElementById('memberList').innerHTML = users.map(u => `
         <div class="member-card">
             <div class="status-dot online"></div>
             <div><h5>${u.name}</h5><h6>(${u.instrument})</h6></div>
         </div>`).join('');
-    
-    // โทรหาทุกคนในห้อง
+        
+    // โทรหาเพื่อนที่อยู่ในห้อง
     users.forEach(u => {
         if (u.id !== myId && u.peerId && !activeCalls[u.peerId]) {
             const call = peer.call(u.peerId, micStream);
@@ -254,13 +274,13 @@ function renderChat(d) {
     b.scrollTop = b.scrollHeight;
 }
 
-// --- Audio Engine ---
+// --- 8. ระบบเครื่องดนตรี (Audio Engine) ---
 async function initAudio() {
     if (Tone.context.state === 'running') return;
-    await Tone.start();
 
     const reverb = new Tone.Reverb(0.4).toDestination();
 
+    // 1. Piano
     toneInstruments.piano = new Tone.Sampler({
         urls: {
             "A0": "A0.mp3", "B0": "B0.mp3", "C1": "C1.mp3", "D1": "D1.mp3", "E1": "E1.mp3", "F1": "F1.mp3", "G1": "G1.mp3",
@@ -283,19 +303,24 @@ async function initAudio() {
     }).connect(reverb);
     toneInstruments.piano.volume.value = 20;
 
+    // 2. Drums
     toneInstruments.drums = new Tone.Players({
         "kick": "kick.mp3", "snare": "snare.mp3", "closehihat": "closehihat.mp3",
         "openhihat": "openhihat.mp3", "tom1": "tom1.mp3", "tom2": "tom2.mp3",
         "floor": "floor.mp3", "crash": "crash.mp3", "ride": "ride.mp3"
-    }, { baseUrl: "/sounds/drum/" }).toDestination();
+    }, {
+        baseUrl: "/sounds/drum/",
+    }).toDestination();
     toneInstruments.drums.volume.value = 5;
 
+    // 3. Guitar
     toneInstruments.guitar = new Tone.Sampler({
         urls: { "E2": "E2.mp3", "A2": "A2.mp3", "D3": "D3.mp3", "G3": "G3.mp3", "B3": "B3.mp3", "E4": "E4.mp3" },
         baseUrl: "/sounds/guitar/"
     }).connect(reverb);
     toneInstruments.guitar.volume.value = 8;
 
+    // 4. Bass
     toneInstruments.bass = new Tone.Sampler({
         urls: { "E1": "bass4.mp3", "A1": "bass3.mp3", "D2": "bass2.mp3", "G2": "bass1.mp3" },
         baseUrl: "/sounds/bass/", release: 0.3
@@ -309,12 +334,22 @@ const SoundEngine = {
             toneInstruments.piano.triggerAttackRelease(Tone.Frequency(note, "midi").toNote(), sus ? "1n" : "8n");
         }
     },
-    playGuitar: (noteName) => {
-        const audio = guitarAudios[noteName];
-        if (!audio) return;
-        audio.currentTime = 0;
-        audio.volume = guitarVolume;
-        audio.play().catch(() => {});
+    playGuitar: (idx) => {
+        // รองรับทั้งแบบกดคีย์บอร์ด (ตัวอักษร) และแบบคลิกสาย (ตัวเลข)
+        if (typeof idx === 'string') {
+            const audio = guitarAudios[idx];
+            if (audio) {
+                audio.currentTime = 0;
+                audio.volume = guitarVolume;
+                audio.play().catch(() => {});
+            }
+        } else {
+            const keys = ["E2", "A2", "D3", "G3", "B3", "E4"];
+            const key = keys[idx];
+            if (key && toneInstruments.guitar?.loaded) {
+                toneInstruments.guitar.triggerAttackRelease(key, "4n");
+            }
+        }
     },
     playBass: (idx) => {
         const notes = ["E1", "A1", "D2", "G2"];
@@ -345,7 +380,7 @@ function executeSound(note, inst, sus) {
     else if (inst === 'Bass') SoundEngine.playBass(note);
 }
 
-// --- UI Render ---
+// --- 9. การวาดเครื่องดนตรีทั้งหมด (Piano, Drum, Guitar, Bass, Singer) ---
 function renderInstrument(type) {
     currentInst = type;
     const deck = document.getElementById('instrumentDeck');
@@ -376,6 +411,7 @@ function renderInstrument(type) {
             }, { passive: false });
             p.appendChild(k);
         }
+
         p.addEventListener('touchmove', (e) => {
             e.preventDefault(); 
             for (let i = 0; i < e.touches.length; i++) {
@@ -391,23 +427,109 @@ function renderInstrument(type) {
                 }
             }
         }, { passive: false });
+
         p.addEventListener('touchend', cleanUpTouches);
         p.addEventListener('touchcancel', cleanUpTouches);
         function cleanUpTouches(e) {
-            for (let i = 0; i < e.changedTouches.length; i++) delete activeTouches[e.changedTouches[i].identifier];
+            for (let i = 0; i < e.changedTouches.length; i++) { delete activeTouches[e.changedTouches[i].identifier]; }
         }
         deck.appendChild(p);
+
     } else if (type === 'Drum') {
-        const c = document.createElement('div'); c.className = 'drum-kit';
-        ['kick', 'snare', 'closehihat', 'openhihat', 'tom1', 'tom2', 'floor', 'crash', 'ride'].forEach(d => {
-            const b = document.createElement('div');
-            b.className = 'drum-pad'; b.id = `drum-${d}`; b.innerText = d;
-            const playDrum = () => { playLocalNote(d, 'Drum'); triggerVisual({ instrument: 'Drum', note: d }); };
+        const c = document.createElement('div'); 
+        c.className = 'drum-kit-pro';
+        
+        const drums = [
+            { id: 'crash', img: 'crash.png', label: 'Crash' },
+            { id: 'tom1', img: 'tom.png', label: 'Tom' },
+            { id: 'tom2', img: 'tom.png', label: 'Tom' },
+            { id: 'ride', img: 'ride.png', label: 'Ride' },
+            { id: 'openhihat', img: 'openhihat.png', label: 'Open HH' },
+            { id: 'snare', img: 'snare.png', label: 'Snare' },
+            { id: 'floor', img: 'floor.png', label: 'Floor' },
+            { id: 'closehihat', img: 'closehihat.png', label: 'Close HH' },
+            { id: 'kick1', img: 'kick.png', label: 'Kick', sound: 'kick' },
+            { id: 'kick2', img: 'kick.png', label: 'Kick', sound: 'kick' }
+        ];
+
+        drums.forEach(d => {
+            const b = document.createElement('div'); 
+            b.className = `drum-item ${d.id}`; 
+            b.id = `drum-${d.id}`;
+            b.innerHTML = `<img src="assets/Drum/${d.img}" alt="${d.label}"><div class="drum-label">${d.label}</div>`;
+
+            const soundKey = d.sound || d.id;
+            const playDrum = () => { playLocalNote(soundKey, 'Drum'); triggerVisual({ instrument: 'Drum', note: d.id }); };
+
             b.onmousedown = (e) => { e.preventDefault(); playDrum(); };
             b.addEventListener('touchstart', (e) => { e.preventDefault(); playDrum(); }, { passive: false });
             c.appendChild(b);
         });
         deck.appendChild(c);
+
+    } else if (type === 'Guitar') {
+        const labels = ['E(1)', 'A(2)', 'D(3)', 'G(4)', 'B(5)', 'E(6)'];
+        const board = document.createElement('div');
+        board.className = 'instrument-board guitar-board';
+        
+        labels.forEach((label, i) => {
+            const row = document.createElement('div');
+            row.className = 'string-row';
+            const lb = document.createElement('div');
+            lb.className = 'string-label'; lb.innerText = label;
+            
+            const lineContainer = document.createElement('div');
+            lineContainer.className = 'string-line-container';
+            const line = document.createElement('div');
+            line.className = 'string-line'; line.id = `guitar-string-${i}`; 
+            
+            const play = () => { playLocalNote(i, 'Guitar'); triggerVisual({ instrument: 'Guitar', note: i }); };
+            
+            lineContainer.onmousedown = play;
+            lineContainer.addEventListener('touchstart', (e) => { e.preventDefault(); play(); }, { passive: false });
+            
+            lineContainer.appendChild(line);
+            row.appendChild(lb); row.appendChild(lineContainer); board.appendChild(row);
+        });
+        deck.appendChild(board);
+
+    } else if (type === 'Bass') {
+        const labels = ['E(1)', 'A(2)', 'D(3)', 'G(4)'];
+        const board = document.createElement('div');
+        board.className = 'instrument-board bass-board';
+        
+        labels.forEach((label, i) => {
+            const row = document.createElement('div');
+            row.className = 'string-row';
+            const lb = document.createElement('div');
+            lb.className = 'string-label'; lb.innerText = label;
+            
+            const lineContainer = document.createElement('div');
+            lineContainer.className = 'string-line-container';
+            const line = document.createElement('div');
+            line.className = 'string-line'; line.id = `bass-string-${i}`; 
+            
+            const play = () => { playLocalNote(i, 'Bass'); triggerVisual({ instrument: 'Bass', note: i }); };
+            
+            lineContainer.onmousedown = play;
+            lineContainer.addEventListener('touchstart', (e) => { e.preventDefault(); play(); }, { passive: false });
+            
+            lineContainer.appendChild(line);
+            row.appendChild(lb); row.appendChild(lineContainer); board.appendChild(row);
+        });
+        deck.appendChild(board);
+
+    } else if (type === 'Singer') {
+        const board = document.createElement('div');
+        board.className = 'instrument-board singer-board'; 
+        
+        const title = document.createElement('h3');
+        title.className = 'singer-title'; title.innerText = 'Lyrics';
+        
+        const textArea = document.createElement('textarea');
+        textArea.className = 'singer-lyrics-input'; textArea.placeholder = 'พิมพ์หรือวางเนื้อเพลงที่นี่...';
+        
+        board.appendChild(title); board.appendChild(textArea); deck.appendChild(board);
     }
 }
 
@@ -415,6 +537,22 @@ function triggerVisual(data) {
     let el;
     if (data.instrument === 'Piano') el = document.getElementById(`note-${data.note}`);
     else if (data.instrument === 'Drum') el = document.getElementById(`drum-${data.note}`);
+    else if (data.instrument === 'Guitar') {
+        if(typeof data.note === 'number') {
+            const ripple = document.getElementById(`ripple-guitar-${data.note}`);
+            const row = document.getElementById(`guitar-string-${data.note}`);
+            if (ripple) { ripple.classList.remove('active'); void ripple.offsetWidth; ripple.classList.add('active'); }
+            if (row) { const line = row.querySelector('.string-line'); if (line) { line.style.boxShadow = '0 0 12px #fff'; setTimeout(() => line.style.boxShadow = '', 300); } }
+        }
+        return;
+    } else if (data.instrument === 'Bass') {
+        const ripple = document.getElementById(`ripple-bass-${data.note}`);
+        const row = document.getElementById(`bass-string-${data.note}`);
+        if (ripple) { ripple.classList.remove('active'); void ripple.offsetWidth; ripple.classList.add('active'); }
+        if (row) { const line = row.querySelector('.string-line'); if (line) { line.style.boxShadow = '0 0 16px #fff'; setTimeout(() => line.style.boxShadow = '', 400); } }
+        return;
+    }
+    
     if (el) { el.classList.add('hit'); setTimeout(() => el.classList.remove('hit'), 200); }
 }
 
@@ -423,11 +561,11 @@ function toggleSustain() {
     document.getElementById('sustainBtn').classList.toggle('sustain-active');
 }
 
+// --- 10. ฟังก์ชันสนับสนุนอื่นๆ (Helper Functions) ---
 function sendChat() {
     const t = document.getElementById('chatMsg');
     if (t.value.trim()) { send('CHAT', t.value); t.value = ''; }
 }
-
 function handleChat(e) { if (e.key === 'Enter') sendChat(); }
 function switchScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
 function closeModals() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
