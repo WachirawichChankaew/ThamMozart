@@ -99,11 +99,13 @@ function handleMessage(c, m) {
                 capacity: m.payload.capacity,
                 users: []
             };
-            joinRoom(c, roomId, null, m.payload.instrument);
+            // 🔥 เพิ่ม m.payload.peerId
+            joinRoom(c, roomId, null, m.payload.instrument, m.payload.peerId); 
             break;
 
         case 'JOIN_ROOM':
-            joinRoom(c, m.payload.roomId, m.payload.password, m.payload.instrument);
+            // 🔥 เพิ่ม m.payload.peerId
+            joinRoom(c, m.payload.roomId, m.payload.password, m.payload.instrument, m.payload.peerId);
             break;
 
         case 'NOTE_PLAY':
@@ -147,7 +149,7 @@ function handleMessage(c, m) {
 }
 
 // 4. Room & Connection Logic
-function joinRoom(c, roomId, p, i) {
+function joinRoom(c, roomId, p, i, peerId) { 
     const r = rooms[roomId];
     if (!r) return sendErr(c, 'No Room');
     if (r.password && r.password !== p && r.users.length > 0) return sendErr(c, 'Wrong Pass');
@@ -157,7 +159,10 @@ function joinRoom(c, roomId, p, i) {
 
     c.room = roomId;
     c.instrument = i;
-    r.users.push({ id: c.id, name: c.name, instrument: i });
+    c.peerId = peerId; // 🔥 บันทึก Peer ID ลงในตัว Client
+
+    // 🔥 เพิ่ม peerId ลงในรายชื่อ users ในห้อง
+    r.users.push({ id: c.id, name: c.name, instrument: i, peerId: peerId }); 
 
     c.socket.write(createFrame({
         type: 'JOIN_SUCCESS',

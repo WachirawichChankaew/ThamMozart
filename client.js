@@ -25,6 +25,10 @@ let micStream = null, scriptProcessor = null, micCtx = null, isMicOn = false;
 let isSustain = false, nextAudioTime = 0;
 let toneInstruments = {};
 
+let peer = null;
+let myPeerId = null;
+let activeCalls = {};
+
 // --- 3. การตั้งค่าปุ่มกด (Input Mapping) ---
 const KeyMaps = {
     'Piano': {
@@ -67,7 +71,6 @@ document.addEventListener('keydown', (e) => {
 // --- 5. การเชื่อมต่อ WebSocket ---
 function connect() {
     ws = new WebSocket((location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + window.location.host);
-    ws.binaryType = 'arraybuffer';
     
     ws.onopen = () => {
         notify("Connected", "success");
@@ -75,17 +78,13 @@ function connect() {
         switchScreen('lobby');
     };
 
+    // 🔥 ไม่ต้องรับค่า ArrayBuffer อีกต่อไป เพราะ WebRTC จะจัดการเสียงให้
     ws.onmessage = (event) => {
-        if (event.data instanceof ArrayBuffer) {
-            playAudioStream(event.data);
-        } else {
-            try { handleServerMessage(JSON.parse(event.data)); } catch (e) { }
-        }
+        try { handleServerMessage(JSON.parse(event.data)); } catch (e) { }
     };
 
     ws.onclose = () => {
         notify("Disconnected", "error");
-        stopMic();
         setTimeout(connect, 3000);
     };
 }
@@ -110,112 +109,81 @@ function handleServerMessage(msg) {
 }
 
 // --- 6. ระบบไมโครโฟนและสตรีมเสียง (Mic & Audio) ---
-async function toggleMic() {
-    if (Tone.context.state !== 'running') await Tone.start();
+// 🔥 ลบ toggleMic, stopMic และ playAudioStream ของเดิมทิ้งทั้งหมด แล้วใช้อันนี้แทน
+function toggleMic() {
     const btn = document.getElementById('micBtn');
-
     if (!isMicOn) {
-        try {
-            if (!micCtx || micCtx.state === 'closed') {
-                micCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (micCtx.state === 'suspended') await micCtx.resume();
-
-            const stream = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true 
-                }
-            });
-            micStream = stream;
-            isMicOn = true;
-            btn.classList.add('mic-active');
-
-            // 🔥 1. สั่งโหลด Background Thread (AudioWorklet) มาใช้งาน
-            await micCtx.audioWorklet.addModule('mic-processor.js');
-            
-            // 🔥 2. สร้าง Node เสียงแบบใหม่ แทนที่ ScriptProcessor แบบเก่า
-            scriptProcessor = new AudioWorkletNode(micCtx, 'mic-processor');
-
-            // 🔥 3. เมื่อไฟล์ mic-processor คำนวณเสียงเสร็จ มันจะส่งมาที่นี่
-            scriptProcessor.port.onmessage = (e) => {
-                if (!isMicOn || ws.readyState !== 1) return;
-                
-                const int16Buffer = e.data; 
-                // สร้างกล่องใส่เสียง + 4 ไบต์สำหรับ Sample Rate
-                const finalBuffer = new ArrayBuffer(4 + int16Buffer.byteLength);
-                const view = new DataView(finalBuffer);
-                
-                view.setFloat32(0, micCtx.sampleRate, true);
-                new Int16Array(finalBuffer, 4).set(new Int16Array(int16Buffer));
-                
-                ws.send(finalBuffer);
-            };
-
-            const source = micCtx.createMediaStreamSource(stream);
-            source.connect(scriptProcessor);
-            scriptProcessor.connect(micCtx.destination);
-
-            const mute = micCtx.createGain();
-            mute.gain.value = 0;
-            scriptProcessor.connect(mute);
-            mute.connect(micCtx.destination);
-        } catch (e) { notify("Mic Error: " + e.message, "error"); }
-    } else { stopMic(); }
+        micStream.getAudioTracks()[0].enabled = true; // Unmute
+        isMicOn = true;
+        btn.classList.add('mic-active');
+    } else {
+        micStream.getAudioTracks()[0].enabled = false; // Mute
+        isMicOn = false;
+        btn.classList.remove('mic-active');
+    }
 }
 
 function stopMic() {
-    if (micStream) micStream.getTracks().forEach(t => t.stop());
-    if (scriptProcessor) { 
-        scriptProcessor.disconnect(); 
-        scriptProcessor = null; 
+    if (micStream && micStream.getAudioTracks()[0]) {
+        micStream.getAudioTracks()[0].enabled = false;
     }
-    // ไม่ต้องมี micCtx.close() เพื่อให้ท่อเสียงไหลลื่นไม่กระตุกตอนเปิดใหม่
     isMicOn = false;
     document.getElementById('micBtn').classList.remove('mic-active');
 }
-function playAudioStream(buffer) {
-    const audioCtx = Tone.context.rawContext; 
-    if (buffer.byteLength <= 4) return; 
-    
-    const view = new DataView(buffer);
-    const senderSampleRate = view.getFloat32(0, true);
-    if (senderSampleRate < 8000 || senderSampleRate > 96000) return;
-    
-    const int16Array = new Int16Array(buffer, 4);
-    const float32 = new Float32Array(int16Array.length);
-    for (let i = 0; i < int16Array.length; i++) {
-        float32[i] = int16Array[i] / 0x7FFF;
-    }
 
-    const audioBuf = audioCtx.createBuffer(1, float32.length, senderSampleRate);
-    audioBuf.getChannelData(0).set(float32);
-    
-    const src = audioCtx.createBufferSource();
-    src.buffer = audioBuf;
-    src.connect(audioCtx.destination);
-
-    const currentTime = audioCtx.currentTime;
-
-    // 🔥 ระบบ Jitter Buffer ขั้นสูงสุดสำหรับ WebSocket
-    // เช็คว่าคิวเสียงในอนาคตเหลือให้เล่นอีกกี่วินาที
-    let timeDifference = nextAudioTime - currentTime;
-
-    if (timeDifference < 0.1) {
-        // ถ้าคิวเสียงแห้ง (เหลือน้อยกว่า 0.1 วิ) แปลว่าเน็ตเริ่มส่งไม่ทัน
-        // ให้เด้งเวลาเผื่อไปอีก 0.35 วิ เพื่อให้เน็ตโหลดก้อนใหม่มาตุนไว้ทัน
-        nextAudioTime = currentTime + 0.35; 
-    } else if (timeDifference > 1.2) {
-        // ถ้าเน็ตค้างแล้วส่งมารวดเดียวจนคิวสะสมยาวเกินไป (ดีเลย์เกิน 1.2 วิ)
-        // ให้ตัดคิวทิ้งเพื่อดึงเสียงกลับมาให้ตรงกับปัจจุบัน
-        nextAudioTime = currentTime + 0.35;
-    }
-
-    src.start(nextAudioTime);
-    nextAudioTime += audioBuf.duration;
+// 🔥 อัปเดตฟังก์ชันนี้ ให้แนบรหัสโทรศัพท์ไปตอนเข้าห้อง
+function confirmJoin() {
+    send('JOIN_ROOM', {
+        roomId: selectedRoom,
+        password: document.getElementById('joinPass').value,
+        instrument: document.getElementById('joinInst').value,
+        peerId: myPeerId 
+    });
+    closeModals();
 }
 
+function createRoom() {
+    send('CREATE_ROOM', {
+        roomName: document.getElementById('newRoomName').value,
+        password: document.getElementById('newRoomPass').value,
+        capacity: document.getElementById('newRoomCap').value,
+        instrument: document.getElementById('createInst').value,
+        peerId: myPeerId
+    });
+    closeModals();
+}
+
+// 🔥 อัปเดตการวางสายตอนออกจากห้อง
+function leaveRoom() {
+    send('LEAVE_ROOM', {});
+    switchScreen('lobby');
+    stopMic();
+    
+    // วางสายทุกคนและทำลายลำโพง
+    Object.values(activeCalls).forEach(call => call.close());
+    activeCalls = {};
+    document.querySelectorAll('audio').forEach(a => a.remove());
+
+    currentInst = "";
+    document.getElementById('instrumentDeck').innerHTML = '';
+}
+
+// 🔥 อัปเดตการแสดงสมาชิก เพื่อให้ระบบโทรหาคนที่เพิ่งเข้ามาใหม่
+function renderMembers(users) {
+    document.getElementById('memberList').innerHTML = users.map(u => `
+        <div class="member-card">
+            <div class="status-dot online"></div>
+            <div><h5>${u.name}</h5><h6>(${u.instrument})</h6></div>
+        </div>`).join('');
+        
+    // โทรหาทุกคนในห้อง (WebRTC จะเชื่อมสายให้เอง)
+    users.forEach(u => {
+        if (u.id !== myId && u.peerId && !activeCalls[u.peerId]) {
+            const call = peer.call(u.peerId, micStream);
+            handleCall(call);
+        }
+    });
+}
 // --- 7. การแสดงผล UI (Lobby & Room) ---
 function renderLobby(rooms) {
     const list = document.getElementById('roomList');
@@ -592,19 +560,53 @@ function renderMembers(users) {
 // --- 10. ฟังก์ชันสนับสนุนอื่นๆ (Helper Functions) ---
 async function login() {
     myName = document.getElementById('username').value.trim();
-    
-    if (!myName) {
-        notify("Name required", "error");
-        return;
-    }
+    if (!myName) { notify("Name required", "error"); return; }
 
     try {
         await Tone.start();
         await initAudio(); 
-        connect();
+
+        // 🔥 ขอสิทธิ์ไมค์ทันทีและ "ปิดเสียง (Mute)" ไว้ก่อน
+        micStream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+        });
+        micStream.getAudioTracks()[0].enabled = false; 
+
+        // 🔥 สร้าง WebRTC โทรศัพท์ส่วนตัว
+        peer = new Peer();
+        peer.on('open', (id) => {
+            myPeerId = id;
+            connect(); // รอได้รหัสโทรศัพท์ก่อน ค่อยต่อเซิร์ฟเวอร์เกม
+        });
+
+        // 🔥 รอรับสายจากเพื่อน
+        peer.on('call', (call) => {
+            call.answer(micStream);
+            handleCall(call);
+        });
+
     } catch (e) {
-        notify("Audio Error: " + e.message, "error");
+        notify("Microphone access is required to join.", "error");
     }
+}
+
+function handleCall(call) {
+    activeCalls[call.peer] = call;
+    call.on('stream', (remoteStream) => {
+        // สร้างลำโพงล่องหนเพื่อเล่นเสียงเพื่อน
+        if (!document.getElementById('audio-' + call.peer)) {
+            const audio = document.createElement('audio');
+            audio.id = 'audio-' + call.peer;
+            audio.srcObject = remoteStream;
+            audio.autoplay = true;
+            document.body.appendChild(audio);
+        }
+    });
+    call.on('close', () => {
+        const audio = document.getElementById('audio-' + call.peer);
+        if (audio) audio.remove();
+        delete activeCalls[call.peer];
+    });
 }
 
 function sendChat() {
