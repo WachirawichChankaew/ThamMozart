@@ -116,8 +116,11 @@ async function toggleMic() {
 
     if (!isMicOn) {
         try {
-            // 1. 🔥 ใช้ AudioContext ของ Tone.js เสมอ ป้องกันการสร้าง Context ซ้อนทับที่ทำให้เบราว์เซอร์รวนและเสียงแตก
-            micCtx = Tone.context.rawContext; 
+            // ✅ 1. สร้าง AudioContext ของไมค์แยกต่างหาก ไม่ใช้ Tone.context
+            // และเช็คว่าถ้ายังไม่มี ถึงจะสร้างใหม่ เพื่อกันบัคเบราว์เซอร์ทำงานหนักจนไมค์ช็อต
+            if (!micCtx || micCtx.state === 'closed') {
+                micCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
 
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
@@ -132,6 +135,7 @@ async function toggleMic() {
 
             const source = micCtx.createMediaStreamSource(stream);
 
+            // ✅ 2. เนื่องจากเราใช้ Context แยกแล้ว คำสั่งนี้จะทำงานได้ 100%
             scriptProcessor = micCtx.createScriptProcessor(4096, 1, 1);
 
             scriptProcessor.onaudioprocess = (e) => {
@@ -145,7 +149,7 @@ async function toggleMic() {
                 view.setFloat32(0, micCtx.sampleRate, true); 
 
                 for (let i = 0; i < input.length; i++) {
-                    // 2. 🔥 ลด Gain (ความดัง) ลงเหลือ 0.8 ก่อนบีบอัด เพื่อป้องกันเสียง Clip/Peak เวลาตะโกน
+                    // ลด Gain ลงเหลือ 0.8 เพื่อป้องกันเสียงแตกเวลาพูดดังๆ
                     let s = Math.max(-1, Math.min(1, input[i] * 0.8));
                     view.setInt16(4 + (i * 2), s < 0 ? s * 0x8000 : s * 0x7FFF, true);
                 }
@@ -165,8 +169,10 @@ async function toggleMic() {
 
 function stopMic() {
     if (micStream) micStream.getTracks().forEach(t => t.stop());
-    if (scriptProcessor) { scriptProcessor.disconnect(); scriptProcessor = null; }
-    micCtx = null; 
+    if (scriptProcessor) { 
+        scriptProcessor.disconnect(); 
+        scriptProcessor = null; 
+    }
     
     isMicOn = false;
     document.getElementById('micBtn').classList.remove('mic-active');
