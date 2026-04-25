@@ -116,14 +116,11 @@ async function toggleMic() {
 
     if (!isMicOn) {
         try {
-            // ✅ 1. สร้าง AudioContext แยกเฉพาะสำหรับไมค์ (ไม่ผ่าน Tone.js)
-            // เช็คว่าถ้ายังไม่มีให้สร้างแค่ครั้งเดียว ทิ้งไว้เลย จะช่วยลดอาการเสียงกระตุกได้มาก
-            if (!micCtx) {
+            // 1. สร้าง AudioContext แยก ไม่บังคับเรทเสียง ปล่อยให้เบราว์เซอร์เลือกค่าที่ดีที่สุด
+            if (!micCtx || micCtx.state === 'closed') {
                 micCtx = new (window.AudioContext || window.webkitAudioContext)();
             }
-            if (micCtx.state === 'suspended') {
-                await micCtx.resume();
-            }
+            if (micCtx.state === 'suspended') await micCtx.resume();
 
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
@@ -137,23 +134,20 @@ async function toggleMic() {
             btn.classList.add('mic-active');
 
             const source = micCtx.createMediaStreamSource(stream);
-
-            // ✅ 2. ตอนนี้เบราว์เซอร์จะรู้จักคำสั่งนี้แล้ว (เพราะไม่โดน Tone.js บล็อก)
             scriptProcessor = micCtx.createScriptProcessor(4096, 1, 1);
 
             scriptProcessor.onaudioprocess = (e) => {
                 if (!isMicOn || ws.readyState !== 1) return;
                 const input = e.inputBuffer.getChannelData(0);
                 
+                // แนบค่า Sample Rate (4 ไบต์แรก) ส่งไปให้เพื่อนด้วย
                 const buffer = new ArrayBuffer(4 + (input.length * 2));
                 const view = new DataView(buffer);
-                
-                // ฝังค่า Sample Rate ให้ผู้ฟัง
                 view.setFloat32(0, micCtx.sampleRate, true); 
 
                 for (let i = 0; i < input.length; i++) {
-                    // ✅ 3. ลดความดังลงนิดหน่อย (0.8) กันเสียงแตกเวลาพูดดัง (Clipping)
-                    let s = Math.max(-1, Math.min(1, input[i] * 0.8));
+                    // 2. 🔥 สำคัญ: ลดความดังลงเหลือ 70% (0.7) เพื่อป้องกันเสียงแตกเวลาพูดดังๆ (Clipping)
+                    let s = Math.max(-1, Math.min(1, input[i] * 0.7));
                     view.setInt16(4 + (i * 2), s < 0 ? s * 0x8000 : s * 0x7FFF, true);
                 }
                 ws.send(buffer);
@@ -162,6 +156,7 @@ async function toggleMic() {
             source.connect(scriptProcessor);
             scriptProcessor.connect(micCtx.destination);
 
+            // ปิดเสียงตัวเองไม่ให้สะท้อนกลับ
             const mute = micCtx.createGain();
             mute.gain.value = 0;
             scriptProcessor.connect(mute);
@@ -176,18 +171,20 @@ function stopMic() {
         scriptProcessor.disconnect(); 
         scriptProcessor = null; 
     }
-
-    
+    // ไม่ต้องมี micCtx.close() เพื่อให้ท่อเสียงไหลลื่นไม่กระตุกตอนเปิดใหม่
     isMicOn = false;
     document.getElementById('micBtn').classList.remove('mic-active');
 }
 
 function playAudioStream(buffer) {
-    const audioCtx = Tone.context.rawContext; // ส่วนการเล่นเสียง ยังใช้ของ Tone ได้ปกติ
+    const audioCtx = Tone.context.rawContext; 
     const view = new DataView(buffer);
     
+    // 3. ป้องกันบัคถ้ามีคนใช้โค้ดเวอร์ชันเก่าส่งเข้ามา
+    if (buffer.byteLength <= 4) return; 
+    
     const senderSampleRate = view.getFloat32(0, true);
-    // เช็คว่า Sample rate สมเหตุสมผลหรือไม่
+    // ถ้าข้อมูลพังให้ข้ามไปเลย ป้องกันลำโพงช็อต
     if (senderSampleRate < 8000 || senderSampleRate > 96000) return;
     
     const float32 = new Float32Array((buffer.byteLength - 4) / 2);
@@ -205,10 +202,10 @@ function playAudioStream(buffer) {
 
     const currentTime = audioCtx.currentTime;
 
-    // ✅ 4. ระบบรอคิวเสียง (Jitter Buffer): หน่วง 0.25 วิ ให้เน็ตต่อคิวเสียงทัน 
-    // ช่วยแก้ปัญหาไมค์ช็อตหรือเสียงขาดหายเหมือนหุ่นยนต์
-    if (nextAudioTime < currentTime || nextAudioTime > currentTime + 1.0) {
-        nextAudioTime = currentTime + 0.25; 
+    // 4. 🔥 ปรับ Jitter Buffer: ถ้าคิวเสียงดีเลย์เกิน 0.5 วิ (ภาพกับเสียงไม่ตรงกัน) 
+    // หรือคิวเสียงมาไม่ทัน (เน็ตกระตุก) ให้รีเซ็ตเวลาใหม่เพื่อกันเสียงแป๊กรัวๆ
+    if (nextAudioTime < currentTime || nextAudioTime > currentTime + 0.5) {
+        nextAudioTime = currentTime + 0.15; 
     }
 
     src.start(nextAudioTime);
