@@ -15,10 +15,14 @@ const server = http.createServer((req, res) => {
         case '.css': contentType = 'text/css'; break;
         case '.json': contentType = 'application/json'; break;
         case '.png': contentType = 'image/png'; break;
-        case '.jpg': contentType = 'image/jpg'; break;
+        case '.jpg': 
+        case '.jpeg': contentType = 'image/jpeg'; break;
+        case '.webp': contentType = 'image/webp'; break;    
+        case '.svg': contentType = 'image/svg+xml'; break;   
         case '.wav': contentType = 'audio/wav'; break;
         case '.mp3': contentType = 'audio/mpeg'; break;
         case '.ogg': contentType = 'audio/ogg'; break;
+        case '.woff2': contentType = 'font/woff2'; break;  
     }
 
     fs.readFile(filePath, (err, content) => {
