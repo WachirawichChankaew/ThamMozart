@@ -116,8 +116,6 @@ async function toggleMic() {
 
     if (!isMicOn) {
         try {
-            // 🔥 1. ปล่อยให้เบราว์เซอร์ใช้ Sample Rate พื้นฐานของอุปกรณ์ 
-            // เพื่อไม่ให้ CPU ต้องทำงานหนักในการแปลงความถี่เสียง (ช่วยลดอาการกระตุกได้ดีมาก)
             if (!micCtx || micCtx.state === 'closed') {
                 micCtx = new (window.AudioContext || window.webkitAudioContext)();
             }
@@ -134,31 +132,28 @@ async function toggleMic() {
             isMicOn = true;
             btn.classList.add('mic-active');
 
-            const source = micCtx.createMediaStreamSource(stream);
+            // 🔥 1. สั่งโหลด Background Thread (AudioWorklet) มาใช้งาน
+            await micCtx.audioWorklet.addModule('mic-processor.js');
             
-            // ส่งก้อนใหญ่ขึ้นเพื่อให้เครื่องมีเวลาพักหายใจ
-            scriptProcessor = micCtx.createScriptProcessor(8192, 1, 1);
+            // 🔥 2. สร้าง Node เสียงแบบใหม่ แทนที่ ScriptProcessor แบบเก่า
+            scriptProcessor = new AudioWorkletNode(micCtx, 'mic-processor');
 
-            scriptProcessor.onaudioprocess = (e) => {
+            // 🔥 3. เมื่อไฟล์ mic-processor คำนวณเสียงเสร็จ มันจะส่งมาที่นี่
+            scriptProcessor.port.onmessage = (e) => {
                 if (!isMicOn || ws.readyState !== 1) return;
-                const input = e.inputBuffer.getChannelData(0);
                 
-                const buffer = new ArrayBuffer(4 + (input.length * 2));
+                const int16Buffer = e.data; 
+                // สร้างกล่องใส่เสียง + 4 ไบต์สำหรับ Sample Rate
+                const finalBuffer = new ArrayBuffer(4 + int16Buffer.byteLength);
+                const view = new DataView(finalBuffer);
                 
-                // ฝังค่า Sample Rate ไว้ 4 ไบต์แรก
-                new DataView(buffer).setFloat32(0, micCtx.sampleRate, true); 
-
-                // 🔥 2. ใช้ Int16Array ทำงานโดยตรงกับ Memory (เร็วกว่าแบบเดิมมาก ป้องกันเบราว์เซอร์ค้าง)
-                const int16Array = new Int16Array(buffer, 4);
-                for (let i = 0; i < input.length; i++) {
-                    let s = input[i] * 0.8; 
-                    if (s > 1) s = 1;
-                    else if (s < -1) s = -1;
-                    int16Array[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-                }
-                ws.send(buffer);
+                view.setFloat32(0, micCtx.sampleRate, true);
+                new Int16Array(finalBuffer, 4).set(new Int16Array(int16Buffer));
+                
+                ws.send(finalBuffer);
             };
 
+            const source = micCtx.createMediaStreamSource(stream);
             source.connect(scriptProcessor);
             scriptProcessor.connect(micCtx.destination);
 
