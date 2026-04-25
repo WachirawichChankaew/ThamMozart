@@ -3,13 +3,12 @@
     --bg: #222;
     --panel: #333;
     --text: #fff;
-    --danger: #ff4444;
+    --daTestnger: #ff4444;
     --success: #00C851;
 }
 
 @font-face {
     font-family: "Default_Font";
-    /* ตั้งชื่อที่เราจะเรียกใช้ */
     src: url('assets/font.woff2');
     display: swap;
 }
