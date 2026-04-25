@@ -158,8 +158,9 @@ async function login() {
 }
 
 function handleCall(call) {
+    console.log("☎️ กำลังเชื่อมต่อสายกับ Peer:", call.peer);
     activeCalls[call.peer] = call;
-    
+
     call.on('stream', (remoteStream) => {
         console.log("🔊 ได้รับสัญญาณเสียงจาก:", call.peer);
         
@@ -167,19 +168,28 @@ function handleCall(call) {
         if (!audio) {
             audio = document.createElement('audio');
             audio.id = 'audio-' + call.peer;
+            // ตั้งค่าพื้นฐานให้เสียงเล่นได้แน่นอน
+            audio.autoplay = true;
+            audio.controls = false;
+            audio.setAttribute('playsinline', 'true'); // สำหรับ iOS
             document.body.appendChild(audio);
         }
         
         audio.srcObject = remoteStream;
-        audio.volume = 1.0; // บังคับเปิดเสียงดังสุด
         
-        // บังคับเล่นเสียงทันทีที่โหลดข้อมูลเสร็จ
-        audio.onloadedmetadata = () => {
-            audio.play().catch(e => {
-                console.error("🔇 เบราว์เซอร์บล็อกเสียง:", e);
-                notify("คลิกที่หน้าจอ 1 ครั้งเพื่อให้ระบบเสียงไมค์ทำงาน", "error");
+        // 🔥 บังคับให้เล่นเสียง และดักจับถ้าโดนบล็อก
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(error => {
+                console.error("🔇 ระบบ Autoplay บล็อกเสียง:", error);
+                notify("คลิกที่หน้าจอ 1 ครั้งเพื่อเปิดระบบเสียงไมค์", "error");
+                
+                // ถ้าโดนบล็อก ให้รอผู้ใช้คลิกอะไรก็ได้แล้วค่อยเล่นใหม่
+                window.addEventListener('click', () => {
+                    audio.play();
+                }, { once: true });
             });
-        };
+        }
     });
 
     call.on('close', () => {
