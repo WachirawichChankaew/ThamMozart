@@ -225,7 +225,7 @@ function toggleMic() {
     isMicOn = !isMicOn;
     // ใช้ GainNode toggle — smooth ไม่มีคลิก และไม่กระทบ WebRTC stream
     if (micGain) {
-        micGain.gain.setTargetAtTime(isMicOn ? 2.5 : 0, sharedCtx.currentTime, 0.01);
+        micGain.gain.setTargetAtTime(isMicOn ? 1.0 : 0, sharedCtx.currentTime, 0.01);
     }
     btn.classList.toggle('mic-active', isMicOn);
 }
@@ -344,27 +344,18 @@ async function initAudio() {
     mixerDest = sharedCtx.createMediaStreamDestination();
     mixedStream = mixerDest.stream;
 
-    // === Compressor — กัน instrument กลบ mic ===
-    const compressor = sharedCtx.createDynamicsCompressor();
-    compressor.threshold.value = -24;  // เริ่ม compress เมื่อเสียงเกิน -24dB
-    compressor.knee.value = 6;
-    compressor.ratio.value = 4;        // ลดเสียงดนตรีที่ดังเกินไป 4:1
-    compressor.attack.value = 0.003;
-    compressor.release.value = 0.25;
-    compressor.connect(mixerDest);
-
-    // === Mic Chain: mic → micGain → compressor → mixerDest ===
+    // GainNode สำหรับ mic (เปิด/ปิดด้วย gain แทน track.enabled เพื่อ smooth)
     micGain = sharedCtx.createGain();
-    micGain.gain.value = 0;            // ปิดไว้ก่อน (เปิดตอนกดปุ่ม)
-    micGain.connect(compressor);
+    micGain.gain.value = 0; // ปิดไว้ก่อน
+    micGain.connect(mixerDest);
 
-    // === Instrument Chain: Tone.js → instMixGain → compressor → mixerDest ===
-    // gain ต่ำ — ดนตรีเป็นเสียงรอง mic เป็นเสียงหลัก
+    // Master gain สำหรับเสียงดนตรีที่จะส่งออก WebRTC ด้วย
     const instMixGain = sharedCtx.createGain();
-    instMixGain.gain.value = 0.35;     // ลดดนตรีลงก่อนรวมกับ mic
-    instMixGain.connect(compressor);
+    instMixGain.gain.value = 0.85;
+    instMixGain.connect(mixerDest);
 
-    // เชื่อม Tone.js destination → instMixGain
+    // เชื่อม Tone.js destination → instMixGain → mixerDest
+    // Tone.Destination เป็น AudioNode ดึงได้ผ่าน .input
     Tone.getDestination().connect(instMixGain);
 
     const reverb = new Tone.Reverb(0.4).toDestination();
@@ -390,7 +381,7 @@ async function initAudio() {
         },
         baseUrl: "/sounds/piano/",
     }).connect(reverb);
-    toneInstruments.piano.volume.value = 4;
+    toneInstruments.piano.volume.value = 20;
 
     // 2. Drums
     toneInstruments.drums = new Tone.Players({
