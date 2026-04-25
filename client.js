@@ -315,7 +315,15 @@ async function initAudio() {
 
     // 3. Guitar
     toneInstruments.guitar = new Tone.Sampler({
-        urls: { "E2": "E2.mp3", "A2": "A2.mp3", "D3": "D3.mp3", "G3": "G3.mp3", "B3": "B3.mp3", "E4": "E4.mp3" },
+        urls: { 
+            "A3": "Guitar_A.mp3", 
+            "B3": "Guitar_B.mp3", 
+            "C4": "Guitar_C.mp3", 
+            "D4": "Guitar_D.mp3", 
+            "E4": "Guitar_E.mp3", 
+            "F4": "Guitar_F.mp3", 
+            "G4": "Guitar_G.mp3" 
+        },
         baseUrl: "/sounds/guitar/"
     }).connect(reverb);
     toneInstruments.guitar.volume.value = 8;
@@ -336,19 +344,18 @@ const SoundEngine = {
     },
     playGuitar: (idx) => {
         // รองรับทั้งแบบกดคีย์บอร์ด (ตัวอักษร) และแบบคลิกสาย (ตัวเลข)
+        if (!toneInstruments.guitar?.loaded) return;
+
         if (typeof idx === 'string') {
-            const audio = guitarAudios[idx];
-            if (audio) {
-                audio.currentTime = 0;
-                audio.volume = guitarVolume;
-                audio.play().catch(() => {});
-            }
+            // กรณีผู้เล่นกดคีย์บอร์ด (A, B, C...)
+            const noteMap = { 'A': 'A3', 'B': 'B3', 'C': 'C4', 'D': 'D4', 'E': 'E4', 'F': 'F4', 'G': 'G4' };
+            if (noteMap[idx]) toneInstruments.guitar.triggerAttackRelease(noteMap[idx], "4n");
         } else {
+            // กรณีผู้เล่นคลิกที่สายกีตาร์บนหน้าจอ (0-5)
+            // ระบบจะเอาไฟล์เสียงมาดัดโน้ตให้ตรงกับสายกีตาร์ของจริง (E A D G B E)
             const keys = ["E2", "A2", "D3", "G3", "B3", "E4"];
             const key = keys[idx];
-            if (key && toneInstruments.guitar?.loaded) {
-                toneInstruments.guitar.triggerAttackRelease(key, "4n");
-            }
+            if (key) toneInstruments.guitar.triggerAttackRelease(key, "4n");
         }
     },
     playBass: (idx) => {
