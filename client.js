@@ -390,23 +390,44 @@ function renderInstrument(type) {
         deck.appendChild(p);
 
     } else if (type === 'Drum') {
-        const c = document.createElement('div'); c.className = 'drum-kit';
-        ['kick', 'snare', 'closehihat', 'openhihat', 'tom1', 'tom2', 'floor', 'crash', 'ride'].forEach(d => {
-            const b = document.createElement('div');
-            b.className = 'drum-pad';
-            b.id = `drum-${d}`;
-            b.innerText = d;
+        const c = document.createElement('div'); 
+        c.className = 'drum-kit-pro'; // ใช้คลาสใหม่เพื่อจัดเลย์เอาต์สมจริง
+        
+        // รายการกลองตามที่คุณต้องการ พร้อมรูปภาพจาก assets/Drum/
+        const drums = [
+            { id: 'crash', img: 'crash.png', label: 'Crash' },
+            { id: 'tom1', img: 'tom.png', label: 'Tom' },
+            { id: 'tom2', img: 'tom.png', label: 'Tom' },
+            { id: 'ride', img: 'ride.png', label: 'Ride' },
+            { id: 'openhihat', img: 'openhihat.png', label: 'Open HH' },
+            { id: 'snare', img: 'snare.png', label: 'Snare' },
+            { id: 'floor', img: 'floor.png', label: 'Floor' },
+            { id: 'closehihat', img: 'closehihat.png', label: 'Close HH' },
+            { id: 'kick1', img: 'kick.png', label: 'Kick', sound: 'kick' },
+            { id: 'kick2', img: 'kick.png', label: 'Kick', sound: 'kick' }
+        ];
 
-            b.onmousedown = () => {
-                playLocalNote(d, 'Drum');
-                triggerVisual({ instrument: 'Drum', note: d });
+        drums.forEach(d => {
+            const b = document.createElement('div'); 
+            b.className = `drum-item ${d.id}`; 
+            b.id = `drum-${d.id}`;
+            
+            // ใส่รูปภาพกลอง
+            b.innerHTML = `
+                <img src="assets/Drum/${d.img}" alt="${d.label}">
+                <div class="drum-label">${d.label}</div>
+            `;
+
+            const soundKey = d.sound || d.id;
+
+            // ระบบคลิกและทัช
+            const playDrum = () => {
+                playLocalNote(soundKey, 'Drum');
+                triggerVisual({ instrument: 'Drum', note: d.id });
             };
 
-            b.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                playLocalNote(d, 'Drum');
-                triggerVisual({ instrument: 'Drum', note: d });
-            }, { passive: false });
+            b.onmousedown = (e) => { e.preventDefault(); playDrum(); };
+            b.addEventListener('touchstart', (e) => { e.preventDefault(); playDrum(); }, { passive: false });
 
             c.appendChild(b);
         });

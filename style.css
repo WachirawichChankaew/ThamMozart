@@ -343,7 +343,7 @@ textarea {
 }
 
 .instrument-area {
-    height: 40%;
+    height: 45%;
     background: #111;
     border-top: 2px solid var(--main);
     display: flex;
@@ -452,41 +452,6 @@ textarea {
     font-weight: bold;
     width: 20px;
     text-align: center;
-}
-
-.drum-kit {
-    display: grid;
-    grid-template-columns: repeat(9, 1fr);
-    gap: 15px;
-    padding: 20px;
-}
-
-.drum-pad {
-    width: 150px;
-    ;
-    height: 150px;
-    ;
-    border-radius: 50%;
-    border: 4px solid #444;
-    background: #222;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: #aaa;
-    cursor: pointer;
-    font-weight: bold;
-    transition: 0.1s;
-    box-shadow: inset 0 0 10px #000;
-    touch-action: none;
-}
-
-.drum-pad:active,
-.drum-pad.hit {
-    border-color: var(--main);
-    color: white;
-    background: #333;
-    transform: scale(0.95);
-    box-shadow: 0 0 15px var(--main);
 }
 
 .member-card {
@@ -639,12 +604,12 @@ blockquote {
     left: 0;
     width: 100%;
     height: 100%;
-    background: transparent; 
+    background: transparent;
     display: none;
     justify-content: center;
     align-items: center;
     z-index: 100;
-    backdrop-filter: blur(5px); 
+    backdrop-filter: blur(5px);
 }
 
 .modal-form {
@@ -772,101 +737,6 @@ h6 {
     }
 }
 
-/* หน้าจอขนาดเล็ก (Mobile) */
-@media screen and (max-width: 768px) {
-
-    /* หน้า Home */
-    .card-home {
-        flex-direction: column;
-        width: 90%;
-        height: 90%;
-        overflow-y: auto;
-    }
-
-    .ticket,
-    .card-head {
-        width: 100%;
-    }
-
-    .logo-text {
-        margin-top: 20px;
-    }
-
-    /* หน้า Lobby */
-    .room-list {
-        grid-template-columns: 1fr;
-        justify-items: center;
-    }
-
-    .room-cards {
-        max-width: 100%;
-        /* ให้การ์ดห้องกว้างเต็มจอในมือถือ */
-    }
-
-    /* หน้า Room: เรียง Panel จากบนลงล่างแทนการวางข้างกัน */
-    .room-content {
-        flex-direction: column;
-        height: auto;
-        flex: 1;
-        overflow-y: auto;
-        /* ให้เลื่อนลงดูแชทได้ถ้ายาว */
-    }
-
-    .side-panel {
-        width:100%;
-        background: #2a2a2a;
-        padding: 10px;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        border-right: 1px solid #444;
-        overflow: hidden;
-        /* 🔥 ป้องกันไม่ให้ทะลุขอบล่าง */
-    }
-
-    /* 🔥 เพิ่มบล็อกนี้เข้าไป เพื่อให้ฝั่งซ้ายเลื่อนขึ้นลงได้เวลามีคนเยอะ */
-    #memberList {
-        flex: 1;
-        overflow-y: auto;
-        display: flex;
-        flex-direction: row;
-    }
-
-    .member-card {
-        white-space: nowrap;
-        margin-bottom: 0;
-    }
-
-    .chat-panel {
-        height: 180px;
-        /* จำกัดความสูงแชทบนมือถือ */
-        min-height: 180px;
-        margin: 5px;
-    }
-
-    .controls {
-        width: 100%;
-        flex-direction: row;
-        justify-content: center;
-        border-left: none;
-        padding: 10px 0;
-    }
-
-
-    .drum-kit {
-        grid-template-columns: repeat(3, 1fr);
-        /* กลองเรียง 3 คอลัมน์บนมือถือ */
-        gap: 10px;
-        margin: 0 auto;
-    }
-
-    .drum-pad {
-        width: 70px;
-        height: 70px;
-        font-size: 0.8em;
-    }
-}
-
 /* --- ระบบเลือกเครื่องดนตรีแบบรูปภาพแถวเดียว --- */
 .instrument-selector {
     display: flex;
@@ -913,9 +783,12 @@ h6 {
 
 /* ควบคุมขนาดรูปภาพเครื่องดนตรี */
 .inst-img {
-    width: 40px; /* ปรับขนาดความกว้างของรูปได้ตามต้องการ */
-    height: 40px; /* ปรับขนาดความสูงของรูป */
-    object-fit: contain; /* ทำให้รูปไม่เบี้ยว */
+    width: 40px;
+    /* ปรับขนาดความกว้างของรูปได้ตามต้องการ */
+    height: 40px;
+    /* ปรับขนาดความสูงของรูป */
+    object-fit: contain;
+    /* ทำให้รูปไม่เบี้ยว */
     margin-bottom: 5px;
 }
 
@@ -930,8 +803,8 @@ h6 {
 .room-top-selector .inst-option {
     padding: 5px 2px;
     font-size: 0.65em;
-    width: 40px;  
-    flex: none; 
+    width: 40px;
+    flex: none;
     text-align: center;
 }
 
@@ -941,4 +814,163 @@ h6 {
     height: 20px;
     object-fit: contain;
     margin-bottom: 2px;
+}
+/* ==========================================
+   DRUM KIT PRO — Layout ตามภาพกลองชุดจริง
+   ==========================================
+
+   ภาพ top-view จากซ้ายไปขวา:
+   ซ้าย:        ฉาบ 3 ชั้น (crash บน / openhihat กลาง / closehihat ล่าง) ซ้อนกันแนวตั้ง
+   กลางบน:      tom1 (ซ้าย) + tom2 (ขวา) เรียงกัน
+   ขวาบน:       ride ฉาบ (อยู่ขวาบน)
+   กลางล่าง:    kick1 (ซ้าย) + kick2 (กลาง) + floor (ขวา) เรียงชิดกัน
+   ขวาล่าง:     snare (ขวาสุด)
+*/
+
+.drum-kit-pro {
+    position: relative;
+    width: 780px;
+    height: 320px;
+    margin: 0 auto;
+}
+
+/* ตั้งค่าพื้นฐานปุ่มกลอง */
+.drum-item {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.08s ease, filter 0.08s ease;
+    touch-action: none;
+    user-select: none;
+    overflow: visible;
+}
+
+.drum-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+    display: block;
+}
+
+.drum-label {
+    position: absolute;
+    bottom: -16px;
+    width: 100%;
+    font-size: 9px;
+    color: #777;
+    white-space: nowrap;
+    text-align: center;
+    letter-spacing: 0.5px;
+}
+
+/* Visual feedback */
+.drum-item.hit img {
+    filter: brightness(1.7) drop-shadow(0 0 10px var(--main));
+    transform: scale(0.94);
+}
+
+/* ============================================
+   ตำแหน่งชิ้นส่วนทุกชิ้น — พิกัด absolute
+   อ้างอิงจากภาพต้นฉบับ (top-view)
+   ============================================ */
+
+/*
+  ---- ซ้ายสุด: กลุ่มฉาบซ้อนกัน 3 ชั้น ----
+  crash อยู่บนสุด, openhihat กลาง, closehihat ล่าง
+  ทั้ง 3 ทรงรีแบน ซ้อนกันแนวตั้ง
+*/
+#drum-crash {
+    width: 110px;
+    height: 110px;
+    top: 15px;
+    left: 170px;
+    z-index: 12;
+}
+#drum-openhihat {
+    width: 100px;
+    height: 100px;
+    top: 170px;
+    left: 140px;
+    z-index: 11;
+}
+#drum-closehihat {
+    width: 100px;
+    height: 100px;
+    top: 90px;
+    left: 135px;
+    z-index: 11;
+}
+
+/*
+  ---- กลางบน: tom1 และ tom2 ----
+  อยู่แถวบน กึ่งกลาง ห่างจากซ้าย ~160px
+*/
+#drum-tom1 {
+    width: 110px;
+    height: 110px;
+    top: 40px;
+    left: 260px;
+    z-index: 10;
+}
+#drum-tom2 {
+    width: 110px;
+    height: 110px;
+    top: 40px;
+    left: 390px;
+    z-index: 10;
+}
+
+/*
+  ---- ขวาบน: ride ฉาบ ----
+  ทรงรีแบน อยู่มุมขวาบน
+*/
+#drum-ride {
+    width: 120px;
+    height: 120px;
+    top: 5px;
+    right: 180px;
+    z-index: 12;
+}
+
+/*
+  ---- แถวล่าง: kick1 + kick2 + floor เรียงชิดกัน ----
+  kick ใหญ่ 2 ลูกอยู่กลาง, floor อยู่ขวาของ kick
+*/
+#drum-kick1 {
+    width: 145px;
+    height: 145px;
+    bottom: 20px;
+    left: 230px;
+    z-index: 3;
+}
+#drum-kick2 {
+    width: 145px;
+    height: 145px;
+    bottom: 20px;
+    left: 380px;
+    z-index: 3
+}
+#drum-floor {
+    width: 120px;
+    height: 120px;
+    bottom: 80px;
+    left: 480px;
+    z-index: 4;
+}
+
+/*
+  ---- ขวาสุด: snare ----
+  วงกลมขนาดกลาง อยู่ขวาล่างสุด
+*/
+#drum-snare {
+    width: 125px;
+    height: 125px;
+    bottom: 100px;
+    right: 340px;
+    z-index: 6;
 }
