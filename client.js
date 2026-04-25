@@ -230,7 +230,7 @@ function confirmJoin() {
 
 // --- 8. ระบบเครื่องดนตรี (Audio Engine) ---
 async function initAudio() {
-    if (Tone.context.state === 'running') return;
+    if (toneInstruments.piano) return;
 
     // สร้าง Reverb และเพิ่มความดังรวม (Output Gain)
     const reverb = new Tone.Reverb(0.4).toDestination();
