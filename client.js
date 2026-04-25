@@ -25,6 +25,20 @@ let micStream = null, scriptProcessor = null, micCtx = null, isMicOn = false;
 let isSustain = false, nextAudioTime = 0;
 let toneInstruments = {};
 
+// --- Guitar MP3 Audio Cache ---
+const guitarAudios = {};
+const guitarNotes = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+const guitarKeyMap = { 'a': 'A', 's': 'B', 'd': 'C', 'f': 'D', 'g': 'E', 'h': 'F', 'j': 'G' };
+let guitarVolume = 0.8;
+
+guitarNotes.forEach(n => {
+    const audio = new Audio(`sounds/guitar/Guitar_${n}.mp3`);
+    audio.preload = 'auto';
+    guitarAudios[n] = audio;
+});
+
+let svLines = [];
+
 // --- 3. การตั้งค่าปุ่มกด (Input Mapping) ---
 const KeyMaps = {
     'Piano': {
@@ -37,7 +51,7 @@ const KeyMaps = {
         '4': 'openhihat', 'r': 'openhihat', '5': 'tom1', 't': 'tom1', '6': 'tom2', 'y': 'tom2',
         '7': 'floor', 'u': 'floor', '8': 'crash', 'i': 'crash', '9': 'ride', 'o': 'ride'
     },
-    'Guitar': { '1': 5, '2': 4, '3': 3, '4': 2, '5': 1, '6': 0 },
+    'Guitar': { 'a': 'A', 's': 'B', 'd': 'C', 'f': 'D', 'g': 'E', 'h': 'F', 'j': 'G' },
     'Bass': { '1': 3, '2': 2, '3': 1, '4': 0 }
 };
 
@@ -276,7 +290,7 @@ async function initAudio() {
     // ตั้งค่าความดังกลอง
     toneInstruments.drums.volume.value = 5;
 
-    // 3. Guitar & Bass - ถ้าต้องการความกระหึ่ม
+    // 3. Guitar & Bass
     toneInstruments.guitar = new Tone.Sampler({
         urls: { "E2": "E2.mp3", "A2": "A2.mp3", "D3": "D3.mp3", "G3": "G3.mp3", "B3": "B3.mp3", "E4": "E4.mp3" },
         baseUrl: "/sounds/guitar/"
@@ -284,10 +298,13 @@ async function initAudio() {
     toneInstruments.guitar.volume.value = 8;
 
     toneInstruments.bass = new Tone.Sampler({
-        urls: { "E1": "E1.mp3", "A1": "A1.mp3", "D2": "D2.mp3", "G2": "G2.mp3" },
-        baseUrl: "/sounds/bass/"
+        urls: { "E1": "bass4.mp3", 
+            "A1": "bass3.mp3", 
+            "D2": "bass2.mp3", 
+            "G2": "bass1.mp3" },
+        baseUrl: "/sounds/bass/", release: 0.3
     }).toDestination();
-    toneInstruments.bass.volume.value = 12;
+    toneInstruments.bass.volume.value = 3;
 }
 
 const SoundEngine = {
@@ -296,16 +313,18 @@ const SoundEngine = {
             toneInstruments.piano.triggerAttackRelease(Tone.Frequency(note, "midi").toNote(), sus ? "1n" : "8n");
         }
     },
-    playGuitar: (idx) => {
-        const notes = ["E2", "A2", "D3", "G3", "B3", "E4"];
-        if (toneInstruments.guitar?.loaded) {
-            toneInstruments.guitar.triggerAttackRelease(notes[idx], "2n");
-        }
+    playGuitar: (noteName) => {
+        const audio = guitarAudios[noteName];
+        if (!audio) return;
+        audio.currentTime = 0;
+        audio.volume = guitarVolume;
+        audio.play().catch(() => {});
     },
     playBass: (idx) => {
         const notes = ["E1", "A1", "D2", "G2"];
         if (toneInstruments.bass?.loaded) {
-            toneInstruments.bass.triggerAttackRelease(notes[idx], "2n");
+            toneInstruments.bass.releaseAll();
+            toneInstruments.bass.triggerAttack(notes[idx]);
         }
     },
     playDrum: (type) => {
@@ -314,6 +333,7 @@ const SoundEngine = {
         }
     }
 };
+
 function renderInstrument(type) {
     currentInst = type;
     const deck = document.getElementById('instrumentDeck');
@@ -390,29 +410,263 @@ function renderInstrument(type) {
         deck.appendChild(p);
 
     } else if (type === 'Drum') {
-        const c = document.createElement('div'); c.className = 'drum-kit';
-        ['kick', 'snare', 'closehihat', 'openhihat', 'tom1', 'tom2', 'floor', 'crash', 'ride'].forEach(d => {
-            const b = document.createElement('div');
-            b.className = 'drum-pad';
-            b.id = `drum-${d}`;
-            b.innerText = d;
+        const c = document.createElement('div');
+        c.className = 'drum-kit-pro'; // ใช้คลาสใหม่เพื่อจัดเลย์เอาต์สมจริง
 
-            b.onmousedown = () => {
-                playLocalNote(d, 'Drum');
-                triggerVisual({ instrument: 'Drum', note: d });
+        // รายการกลองตามที่คุณต้องการ พร้อมรูปภาพจาก assets/Drum/
+        const drums = [
+            { id: 'crash', img: 'crash.png', label: 'Crash' },
+            { id: 'tom1', img: 'tom.png', label: 'Tom' },
+            { id: 'tom2', img: 'tom.png', label: 'Tom' },
+            { id: 'ride', img: 'ride.png', label: 'Ride' },
+            { id: 'openhihat', img: 'openhihat.png', label: 'Open HH' },
+            { id: 'snare', img: 'snare.png', label: 'Snare' },
+            { id: 'floor', img: 'floor.png', label: 'Floor' },
+            { id: 'closehihat', img: 'closehihat.png', label: 'Close HH' },
+            { id: 'kick1', img: 'kick.png', label: 'Kick', sound: 'kick' },
+            { id: 'kick2', img: 'kick.png', label: 'Kick', sound: 'kick' }
+        ];
+
+        drums.forEach(d => {
+            const b = document.createElement('div');
+            b.className = `drum-item ${d.id}`;
+            b.id = `drum-${d.id}`;
+
+            // ใส่รูปภาพกลอง
+            b.innerHTML = `
+                <img src="assets/Drum/${d.img}" alt="${d.label}">
+                <div class="drum-label">${d.label}</div>
+            `;
+
+            const soundKey = d.sound || d.id;
+
+            // ระบบคลิกและทัช
+            const playDrum = () => {
+                playLocalNote(soundKey, 'Drum');
+                triggerVisual({ instrument: 'Drum', note: d.id });
             };
 
-            b.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                playLocalNote(d, 'Drum');
-                triggerVisual({ instrument: 'Drum', note: d });
-            }, { passive: false });
+            b.onmousedown = (e) => { e.preventDefault(); playDrum(); };
+            b.addEventListener('touchstart', (e) => { e.preventDefault(); playDrum(); }, { passive: false });
 
             c.appendChild(b);
         });
         deck.appendChild(c);
+
+    } else if (type === 'Guitar') {
+        // ============================================================
+        // Guitar UI (จากไฟล์ 1 - ใช้ MP3 Cache + keyboard A S D F G H J)
+        // ============================================================
+        const style = document.createElement('style');
+        style.textContent = `
+            .guitar-wrap {
+                background: linear-gradient(160deg, #4a2e10 0%, #3a2008 60%, #2a1505 100%);
+                border-radius: 14px;
+                border: 1px solid #a06828;
+                overflow: hidden;
+                font-family: serif;
+                width: 92%;
+                position: relative;
+                padding-bottom: 10px;
+            }
+            .guitar-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 10px 16px 8px;
+                border-bottom: 1px solid rgba(90,58,24,0.4);
+            }
+            .guitar-title {
+                font-size: 11px;
+                font-weight: bold;
+                letter-spacing: 0.2em;
+                color: #c8963a;
+                text-transform: uppercase;
+            }
+            .guitar-hint {
+                font-size: 11px;
+                color: rgba(200,150,58,0.45);
+                font-style: italic;
+            }
+            .guitar-strings-vis {
+                position: relative;
+                height: 32px;
+                margin: 0 16px 2px;
+            }
+            .gsv-line {
+                position: absolute;
+                left: 0; right: 0;
+                border-radius: 2px;
+                background: linear-gradient(90deg, #2a1a0a, #c8963a 20%, #e8c060 50%, #c8963a 80%, #2a1a0a);
+                transition: box-shadow 0.1s;
+            }
+            .gsv-line.strumming {
+                box-shadow: 0 0 8px rgba(232,192,96,0.9), 0 0 18px rgba(200,150,58,0.4);
+                animation: gsvib 0.5s ease-out;
+            }
+            @keyframes gsvib {
+                0%   { transform: translateY(0); }
+                10%  { transform: translateY(-4px); }
+                24%  { transform: translateY(3px); }
+                40%  { transform: translateY(-2px); }
+                58%  { transform: translateY(1.2px); }
+                100% { transform: translateY(0); }
+            }
+            .guitar-pads {
+                display: grid;
+                grid-template-columns: repeat(7, minmax(0, 1fr));
+                gap: 6px;
+                padding: 10px 12px 6px;
+            }
+            .gpad {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 5px;
+                background: rgba(140,90,30,0.35);
+                border: 1px solid rgba(160,104,40,0.7);
+                border-radius: 10px;
+                padding: 12px 4px 8px;
+                cursor: pointer;
+                transition: background 0.1s, border-color 0.1s, transform 0.08s;
+                user-select: none;
+                min-height: 70px;
+                position: relative;
+                touch-action: manipulation;
+            }
+            .gpad:hover { background: rgba(200,150,58,0.18); border-color: #c8963a; }
+            .gpad.active {
+                background: rgba(200,150,58,0.32);
+                border-color: #e8c060;
+                transform: scale(0.95);
+                box-shadow: 0 0 14px rgba(200,150,58,0.4);
+            }
+            .gpad-name {
+                font-size: 20px;
+                font-weight: bold;
+                color: #e8c060;
+                line-height: 1;
+            }
+            .gpad-key {
+                font-size: 10px;
+                font-weight: bold;
+                letter-spacing: 0.08em;
+                color: rgba(200,150,58,0.5);
+                background: rgba(90,58,24,0.4);
+                border: 1px solid rgba(90,58,24,0.6);
+                border-radius: 4px;
+                padding: 1px 5px;
+            }
+            .gpad.active .gpad-key { color: #c8963a; border-color: #c8963a; }
+        `;
+        deck.appendChild(style);
+
+        const wrap = document.createElement('div');
+        wrap.className = 'guitar-wrap';
+
+        // Header
+        wrap.innerHTML = `
+            <div class="guitar-header">
+                <span class="guitar-title"></span>
+                <span class="guitar-hint">click or press A S D F G H J</span>
+            </div>
+            <div class="guitar-strings-vis" id="guitarStringsVis"></div>
+            <div class="guitar-pads" id="guitarPads"></div>
+            </div>
+        `;
+        deck.appendChild(wrap);
+
+        // String visual lines
+        const svContainer = wrap.querySelector('#guitarStringsVis');
+        const stringTops = [3, 8, 13, 18, 23, 28];
+        const stringH   = [1.2, 1.5, 1.8, 2.2, 2.8, 3.4];
+        svLines = [];
+        stringTops.forEach((top, i) => {
+            const line = document.createElement('div');
+            line.className = 'gsv-line';
+            line.style.top = top + 'px';
+            line.style.height = stringH[i] + 'px';
+            svContainer.appendChild(line);
+            svLines.push(line);
+        });
+
+        function strumVisual() {
+            svLines.forEach((line, i) => {
+                setTimeout(() => {
+                    line.classList.remove('strumming');
+                    void line.offsetWidth;
+                    line.classList.add('strumming');
+                    setTimeout(() => line.classList.remove('strumming'), 600);
+                }, i * 25);
+            });
+        }
+
+        // Pads
+        const padKeys = ['A','S','D','F','G','H','J'];
+        const padsContainer = wrap.querySelector('#guitarPads');
+        guitarNotes.forEach((note, i) => {
+            const pad = document.createElement('div');
+            pad.className = 'gpad';
+            pad.id = `gpad-${note}`;
+            pad.innerHTML = `<span class="gpad-name">${note}</span><span class="gpad-key">${padKeys[i]}</span>`;
+
+            const triggerPad = () => {
+                playLocalNote(note, 'Guitar');
+                triggerVisual({ instrument: 'Guitar', note });
+                strumVisual();
+                pad.classList.remove('active');
+                void pad.offsetWidth;
+                pad.classList.add('active');
+                setTimeout(() => pad.classList.remove('active'), 400);
+            };
+
+            pad.addEventListener('mousedown', triggerPad);
+            pad.addEventListener('touchstart', (e) => { e.preventDefault(); triggerPad(); }, { passive: false });
+            padsContainer.appendChild(pad);
+        });
+
+    } else if (type === 'Bass') {
+        const bassContainer = document.createElement('div');
+        bassContainer.className = 'bass-fretboard';
+
+        // สายเบส 4 สาย: อ้างอิง index ตาม SoundEngine.playBass
+        // 3 = G2 (สาย 1 เล็กสุด), 2 = D2 (สาย 2), 1 = A1 (สาย 3), 0 = E1 (สาย 4 ใหญ่สุด)
+        const strings = [
+            { id: 3, label: 'G (Key 1)' },
+            { id: 2, label: 'D (Key 2)' },
+            { id: 1, label: 'A (Key 3)' },
+            { id: 0, label: 'E (Key 4)' }
+        ];
+
+        strings.forEach((str) => {
+            const stringDiv = document.createElement('div');
+            stringDiv.className = `bass-string string-${str.id}`;
+            stringDiv.id = `bass-${str.id}`;
+
+            // ใส่ Label บอกปุ่มกด
+            stringDiv.innerHTML = `<span>${str.label}</span>`;
+
+            // รองรับเมาส์คลิก
+            stringDiv.onmousedown = () => {
+                playLocalNote(str.id, 'Bass');
+                triggerVisual({ instrument: 'Bass', note: str.id });
+            };
+
+            // รองรับการสัมผัส (Touch) บนมือถือ
+            stringDiv.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                playLocalNote(str.id, 'Bass');
+                triggerVisual({ instrument: 'Bass', note: str.id });
+            }, { passive: false });
+
+            bassContainer.appendChild(stringDiv);
+        });
+
+        deck.appendChild(bassContainer);
     }
 }
+
 // --- 9. ระบบแชทและสมาชิก (Chat & Members) ---
 function renderChat(d) {
     const b = document.getElementById('chatHistory');
@@ -476,7 +730,7 @@ function leaveRoom() {
     switchScreen('lobby');
     stopMic();
 
-    // 🔥 เพิ่ม 2 บรรทัดนี้เพื่อรีเซ็ตสถานะ
+    // รีเซ็ตสถานะ
     currentInst = "";
     document.getElementById('instrumentDeck').innerHTML = '';
 }
@@ -500,16 +754,31 @@ function triggerVisual(data) {
     let el;
     if (data.instrument === 'Piano') el = document.getElementById(`note-${data.note}`);
     else if (data.instrument === 'Drum') el = document.getElementById(`drum-${data.note}`);
+    else if (data.instrument === 'Guitar') {
+        el = document.getElementById(`gpad-${data.note}`);
+        // เรียก strumVisual ทุกครั้งที่มี Guitar note ไม่ว่าจะมาจาก keyboard หรือ mouse
+        if (svLines.length > 0) {
+            svLines.forEach((line, i) => {
+                setTimeout(() => {
+                    line.classList.remove('strumming');
+                    void line.offsetWidth;
+                    line.classList.add('strumming');
+                    setTimeout(() => line.classList.remove('strumming'), 600);
+                }, i * 25);
+            });
+        }
+    }
+    else if (data.instrument === 'Bass') el = document.getElementById(`bass-${data.note}`);
+
     if (el) {
         el.classList.add('hit');
-        setTimeout(() => el.classList.remove('hit'), 200);
+        setTimeout(() => el.classList.remove('hit'), 150);
     }
 }
 
 function toggleSustain() {
     isSustain = !isSustain;
     document.getElementById('sustainBtn').classList.toggle('sustain-active');
-
 }
 
 function changeInstrument(v) { send('CHANGE_INSTRUMENT', v); }
@@ -529,7 +798,7 @@ document.addEventListener('keydown', (e) => {
     const currentScreen = document.querySelector('.screen.active');
     if (!currentScreen || currentScreen.id !== 'room') return;
 
-    // 2. เช็กว่าไม่ได้กำลังพิมพ์แชทอยู่ (โค้ดเดิมของคุณ)
+    // 2. เช็กว่าไม่ได้กำลังพิมพ์แชทอยู่
     if (!currentInst || document.getElementById('chatMsg') === document.activeElement) return;
 
     const key = e.key.toLowerCase();
@@ -564,23 +833,22 @@ function selectInstrument(inputId, value, element) {
 function selectRoomInstrument(value, element) {
     // 1. อัปเดตค่าลงใน <input type="hidden">
     document.getElementById('roomInstSelect').value = value;
-    
+
     // 2. ลบคลาส active ออกจากตัวอื่น แล้วใส่ให้ตัวที่โดนคลิก
     const parent = element.parentElement;
     const options = parent.querySelectorAll('.inst-option');
     options.forEach(opt => opt.classList.remove('active'));
     element.classList.add('active');
-    
+
     // 3. เรียกใช้ฟังก์ชันเดิมของคุณเพื่อส่งข้อมูลไป Server
     changeInstrument(value);
 }
 
-// โค้ดเดิมของคุณ (แก้ไขนิดหน่อยเพื่ออัปเดต UI ให้ตรงกันตอนเข้าห้อง)
-function enterRoom(data) { 
-    document.getElementById('roomTitle').innerText = data.roomName; 
-    
+function enterRoom(data) {
+    document.getElementById('roomTitle').innerText = data.roomName;
+
     // อัปเดต UI ตัวเลือกเครื่องดนตรีให้ตรงกับที่เลือกตอน Join/Create
-    document.getElementById('roomInstSelect').value = data.instrument; 
+    document.getElementById('roomInstSelect').value = data.instrument;
     const options = document.querySelectorAll('.room-top-selector .inst-option');
     options.forEach(opt => {
         if (opt.getAttribute('data-inst') === data.instrument) {
@@ -590,7 +858,7 @@ function enterRoom(data) {
         }
     });
 
-    document.getElementById('chatHistory').innerHTML = ''; 
-    switchScreen('room'); 
-    renderInstrument(data.instrument); 
+    document.getElementById('chatHistory').innerHTML = '';
+    switchScreen('room');
+    renderInstrument(data.instrument);
 }
