@@ -134,7 +134,9 @@ async function toggleMic() {
             btn.classList.add('mic-active');
 
             const source = micCtx.createMediaStreamSource(stream);
-            scriptProcessor = micCtx.createScriptProcessor(4096, 1, 1);
+            
+            
+            scriptProcessor = micCtx.createScriptProcessor(8192, 1, 1);
 
             scriptProcessor.onaudioprocess = (e) => {
                 if (!isMicOn || ws.readyState !== 1) return;
@@ -180,11 +182,9 @@ function playAudioStream(buffer) {
     const audioCtx = Tone.context.rawContext; 
     const view = new DataView(buffer);
     
-    // 3. ป้องกันบัคถ้ามีคนใช้โค้ดเวอร์ชันเก่าส่งเข้ามา
     if (buffer.byteLength <= 4) return; 
     
     const senderSampleRate = view.getFloat32(0, true);
-    // ถ้าข้อมูลพังให้ข้ามไปเลย ป้องกันลำโพงช็อต
     if (senderSampleRate < 8000 || senderSampleRate > 96000) return;
     
     const float32 = new Float32Array((buffer.byteLength - 4) / 2);
@@ -202,10 +202,15 @@ function playAudioStream(buffer) {
 
     const currentTime = audioCtx.currentTime;
 
-    // 4. 🔥 ปรับ Jitter Buffer: ถ้าคิวเสียงดีเลย์เกิน 0.5 วิ (ภาพกับเสียงไม่ตรงกัน) 
-    // หรือคิวเสียงมาไม่ทัน (เน็ตกระตุก) ให้รีเซ็ตเวลาใหม่เพื่อกันเสียงแป๊กรัวๆ
-    if (nextAudioTime < currentTime || nextAudioTime > currentTime + 0.5) {
-        nextAudioTime = currentTime + 0.15; 
+    // 🔥 ระบบแก้เสียงกระตุก (Advanced Jitter Buffer)
+    // 1. ถ้าเสียงมาไม่ทัน (คิวแห้ง) ให้หน่วงเวลาเล่นออกไป 0.4 วินาที เพื่อรอให้ก้อนต่อไปมาต่อคิวทัน
+    if (nextAudioTime < currentTime) {
+        nextAudioTime = currentTime + 0.4; 
+    } 
+    // 2. ถ้าคิวเสียงยาวเกินไป (สะสมจนดีเลย์เกิน 1.5 วินาที) ให้หั่นคิวทิ้งแล้วรีเซ็ตใหม่ 
+    // ป้องกันอาการพูดไปตั้งนานแล้วเพื่อนเพิ่งได้ยิน
+    else if (nextAudioTime > currentTime + 1.5) {
+        nextAudioTime = currentTime + 0.4;
     }
 
     src.start(nextAudioTime);
