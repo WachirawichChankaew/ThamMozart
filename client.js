@@ -159,15 +159,27 @@ async function login() {
 
 function handleCall(call) {
     activeCalls[call.peer] = call;
+    
     call.on('stream', (remoteStream) => {
+        console.log("🔊 ได้รับสัญญาณเสียงจาก:", call.peer);
+        
         let audio = document.getElementById('audio-' + call.peer);
         if (!audio) {
             audio = document.createElement('audio');
             audio.id = 'audio-' + call.peer;
-            audio.autoplay = true;
             document.body.appendChild(audio);
         }
+        
         audio.srcObject = remoteStream;
+        audio.volume = 1.0; // บังคับเปิดเสียงดังสุด
+        
+        // บังคับเล่นเสียงทันทีที่โหลดข้อมูลเสร็จ
+        audio.onloadedmetadata = () => {
+            audio.play().catch(e => {
+                console.error("🔇 เบราว์เซอร์บล็อกเสียง:", e);
+                notify("คลิกที่หน้าจอ 1 ครั้งเพื่อให้ระบบเสียงไมค์ทำงาน", "error");
+            });
+        };
     });
 
     call.on('close', () => {
@@ -330,7 +342,7 @@ async function initAudio() {
         },
         baseUrl: "/sounds/guitar/"
     }).connect(reverb);
-    toneInstruments.guitar.volume.value = 8;
+    toneInstruments.guitar.volume.value = 4;
 
     // 4. Bass
     toneInstruments.bass = new Tone.Sampler({
