@@ -1,0 +1,11 @@
+{
+  "name": "tham-mozart",
+  "version": "1.0.0",
+  "description": "Real-time Music Collaboration",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "author": "Wachirawich",
+  "license": "ISC"
+}

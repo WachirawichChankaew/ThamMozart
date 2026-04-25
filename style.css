@@ -1,0 +1,868 @@
+:root {
+    --main: rgb(188, 164, 122);
+    --bg: #222;
+    --panel: #333;
+    --text: #fff;
+    --danger: #ff4444;
+    --success: #00C851;
+}
+
+@font-face {
+    font-family: "Default_Font";
+    /* ตั้งชื่อที่เราจะเรียกใช้ */
+    src: url('assets/font.woff2');
+    display: swap;
+}
+
+body {
+    margin: 0;
+    font-family: "Default_Font";
+    background-color: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    background-color: #4c0000;
+}
+
+.container {
+    background-image: url('assets/cover-pattern.webp');
+    background-size: 10px 10px;
+    min-height: 100vh;
+}
+
+.card-home {
+    display: flex;
+    width: 70%;
+    height: 70%;
+    background: none;
+    border-radius: 10px;
+    gap: 5px;
+}
+
+.ring {
+    position: fixed;
+    width: 50%;
+    top: 50%;
+    left: -6%;
+    z-index: -1;
+    pointer-events: none;
+    transform: translate(-38%, -55%) rotate(0deg);
+    will-change: transform;
+    animation: ring-spin 10s infinite linear;
+}
+
+@keyframes ring-spin {
+    from {
+        transform: translate(-38%, -55%) rotate(0deg);
+    }
+
+    to {
+        transform: translate(-38%, -55%) rotate(-360deg);
+    }
+}
+
+.screen {
+    display: none;
+    height: 100vh;
+    flex-direction: column;
+}
+
+.form-group-home {
+    background-image: url("assets/ticket-head.webp");
+    background-size: 100% 100%;
+    margin: 0px;
+    overflow: hidden;
+    background-repeat: no-repeat;
+    height: 100%;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+    gap: 10px;
+}
+
+.ticket {
+    width: 40%;
+}
+
+.active {
+    display: flex;
+}
+
+button {
+    background: var(--main);
+    border: none;
+    padding: 10px 20px;
+    color: #fff;
+    border-radius: 100px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.2s;
+}
+
+button:hover {
+    filter: brightness(1.1);
+}
+
+button.red {
+    background: rgb(210, 209, 214);
+    color: rgb(33, 37, 41);
+}
+
+input,
+select,
+textarea {
+    font-family: "Default_Font";
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #555;
+    background: #444;
+    color: white;
+    outline: none;
+}
+
+#notification-area {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.toast {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 280px;
+    padding: 12px 20px;
+    background: rgba(34, 34, 34, 0.85);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: var(--text);
+    border-radius: 8px;
+    border: 1px solid var(--main);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    animation: slideIn 0.4s ease forwards;
+}
+
+.toast.info {
+    border-left: 5px solid var(--main);
+}
+
+.toast.success {
+    border-left: 5px solid var(--success);
+}
+
+.toast.error {
+    border-left: 5px solid var(--danger);
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+#home {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.top-bar {
+    padding: 15px;
+    background: #1a1a1a;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--main);
+}
+
+.room-list {
+    flex: 3;
+    padding: 20px;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    align-content: start;
+}
+
+.room-card {
+    background: #3a3a3a;
+    padding: 15px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-left: 5px solid var(--main);
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    font-size: 0.9em;
+    color: rgb(104, 104, 104);
+}
+
+.form-group input,
+.form-group select {
+    width: 30%;
+    box-sizing: border-box;
+    margin-bottom: 10px;
+    font-weight: lighter;
+}
+
+.room-layout {
+    display: flex;
+    flex: 1;
+    height: 100%;
+}
+
+.room-content {
+    flex: 1;
+    display: flex;
+    height: calc(100% - 350px);
+}
+
+.side-panel {
+    width: 220px;
+    background: #2a2a2a;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border-right: 1px solid #444;
+    overflow-y: auto;
+}
+
+.chat-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    margin: 10px;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.chat-history {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    background: #f0f0f0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.chat-input {
+    display: flex;
+    padding: 5px;
+    border-top: 1px solid #ddd;
+    background: white;
+}
+
+.chat-input input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: black;
+    padding: 10px;
+}
+
+.controls {
+    width: 80px;
+    background: #1a1a1a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 20px;
+    gap: 15px;
+    border-left: 1px solid #444;
+}
+
+.circle-btn {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #444;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 20px;
+    cursor: pointer;
+    transition: 0.3s;
+    color: #888;
+    border: 2px solid #555;
+    position: relative;
+    user-select: none;
+    /* ป้องกันการคลุมดำเวลากดรัวๆ */
+}
+
+.circle-btn:hover {
+    background: #555;
+}
+
+.mic-active {
+    background: var(--danger) !important;
+    border-color: var(--danger) !important;
+    animation: pulse 1s infinite;
+    color: white;
+}
+
+.sustain-active {
+    background: var(--success) !important;
+    border-color: var(--success) !important;
+    color: white;
+    box-shadow: 0 0 10px var(--success);
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.7);
+    }
+
+    70% {
+        transform: scale(1.1);
+        box-shadow: 0 0 0 10px rgba(255, 68, 68, 0);
+    }
+
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(255, 68, 68, 0);
+    }
+}
+
+.instrument-area {
+    height: 40%;
+    background: #111;
+    border-top: 2px solid var(--main);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    user-select: none;
+    /* รองรับการเลื่อนซ้ายขวาบนมือถือถ้าเครื่องดนตรีใหญ่ไป */
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.piano {
+    display: flex;
+    height: 100%;
+    position: relative;
+    width: 70%;
+    justify-content: center;
+
+}
+
+.key {
+    border: 1px solid #ccc;
+    cursor: pointer;
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
+    transition: background 0.1s;
+    position: relative;
+
+}
+
+.key::after {
+    content: attr(data-key);
+    position: absolute;
+    bottom: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: #555;
+}
+
+.white {
+    background: white;
+    flex: 1;
+    height: 80%;
+    z-index: 1;
+}
+
+.white:active,
+.white.hit {
+    background: #ddd;
+    transform: scale(0.98);
+    transform-origin: top;
+}
+
+.black {
+    background: #111;
+    width: 2.5%;
+    /* ปรับความกว้างให้สมส่วนกับ Flex */
+    height: 50%;
+    margin-left: -1.25%;
+    margin-right: -1.25%;
+    z-index: 2;
+    position: relative;
+    border-bottom: 4px solid #000;
+}
+
+.black:active,
+.black.hit {
+    background: #333;
+    border-bottom: 2px solid #000;
+}
+
+.guitar-board {
+    width: 90%;
+    height: 80%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    background: #222;
+    border-radius: 10px;
+    padding: 10px;
+    position: relative;
+    touch-action: none;
+}
+
+.string {
+    height: 3px;
+    background: #888;
+    position: relative;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: 0.1s;
+}
+
+.string:active,
+.string.hit {
+    transform: scaleY(1.5);
+    box-shadow: 0 0 5px var(--main);
+}
+
+.string-label {
+    margin-left: -30px;
+    color: var(--main);
+    font-weight: bold;
+    width: 20px;
+    text-align: center;
+}
+
+.drum-kit {
+    display: grid;
+    grid-template-columns: repeat(9, 1fr);
+    gap: 15px;
+    padding: 20px;
+}
+
+.drum-pad {
+    width: 150px;
+    ;
+    height: 150px;
+    ;
+    border-radius: 50%;
+    border: 4px solid #444;
+    background: #222;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #aaa;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.1s;
+    box-shadow: inset 0 0 10px #000;
+    touch-action: none;
+}
+
+.drum-pad:active,
+.drum-pad.hit {
+    border-color: var(--main);
+    color: white;
+    background: #333;
+    transform: scale(0.95);
+    box-shadow: 0 0 15px var(--main);
+}
+
+.member-card {
+    background: #3a3a3a;
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.chat-msg {
+    background: #e0e0e0;
+    padding: 8px 12px;
+    border-radius: 15px;
+    margin-bottom: 2px;
+    display: inline-block;
+    max-width: 30%;
+    color: #000;
+    font-size: 0.95em;
+    position: relative;
+
+    /* 🔥 เพิ่ม 3 บรรทัดนี้เพื่อบังคับตัดคำเวลาข้อความยาวเกินไป */
+    word-wrap: break-word;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+
+.chat-msg.self {
+    background: var(--main);
+    color: white;
+    align-self: flex-end;
+    border-bottom-right-radius: 2px;
+}
+
+.chat-msg:not(.self) {
+    border-bottom-left-radius: 2px;
+}
+
+.sender-name {
+    font-size: 0.7em;
+    color: #666;
+    margin-bottom: 2px;
+    margin-left: 5px;
+}
+
+.self+.sender-name {
+    display: none;
+}
+
+.card-head {
+    width: 100%;
+    height: 99%;
+    margin-top: 5px;
+    background-color: rgb(255, 255, 255);
+    border-top-left-radius: 25px;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+}
+
+.card-head-inside {
+    background-image: url("assets/white.webp");
+    background-size: 100% 100%;
+    width: 100%;
+    height: 100%;
+    border-top-left-radius: 25px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+
+.card-head-inside input {
+    width: 50%;
+}
+
+.card-head-inside button {
+    width: 50%;
+}
+
+.button-outline {
+    padding: 5px;
+    color: #222;
+    background-color: #ffffff;
+    border: 1px solid #e6e6e6;
+    border-radius: 40px;
+    width: 200px;
+    font-size: smaller;
+    padding: 2px;
+    cursor: pointer;
+}
+
+.button {
+    background-color: #ffffff;
+    border-radius: 50px;
+    width: 206px;
+    padding: 2px;
+    padding-left: 2.5px;
+    padding-top: 2.5px;
+    border: 1px solid #e6e6e6;
+    cursor: pointer;
+}
+
+.button:hover,
+.button-outline:hover {
+    border: 1px solid var(--main);
+}
+
+.button-outline:hover {
+    color: var(--main);
+    border: 1px solid var(--main);
+}
+
+.button:hover {
+    background-color: #222;
+    border: 1px solid #222;
+}
+
+.home-name {
+    color: #222;
+}
+
+.banner {
+    display: block;
+    background-color: var(--main);
+    border-radius: 0 100px 100px 0;
+    color: #222;
+    padding: 3px;
+    text-align: center;
+    width: 60%;
+    margin-top: 20px;
+    font-weight: lighter;
+}
+
+.logo-text {
+    display: block;
+    margin-top: 150px;
+    padding: 20px;
+    text-align: right;
+}
+
+blockquote {
+    margin: 0;
+}
+
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    backdrop-filter: blur(5px);
+}
+
+.modal-form {
+    background: rgb(233, 231, 226);
+    color: rgb(104, 104, 104);
+    padding: 25px;
+    border-radius: 0 0 10px 10px;
+    width: 320px;
+    font-weight: lighter;
+}
+
+.modal-lebel {
+    margin: 0;
+    padding: 20px;
+    background-color: rgb(233, 231, 226);
+    color: #222;
+    border-radius: 10px 10px 0 0;
+    margin-bottom: 0.5px;
+}
+
+.modal-content {
+    border: 1px solid #222;
+    border-radius: 10px;
+    background-color: #4e4e4e;
+}
+
+.modal-form label,
+.modal-form input,
+.modal-form select {
+    width: 100%;
+}
+
+
+.room-cards {
+    background-image: url(assets/TicketRoom.png);
+    background-size: 100% 100%;
+    /* บังคับรูปให้กางเต็มพื้นที่พอดีเป๊ะ */
+    background-repeat: no-repeat;
+
+    width: 100%;
+    max-width: 429px;
+    /* ล็อคขนาดใหญ่สุดไว้เท่ารูปจริง */
+
+    /* 🔥 คีย์สำคัญ: ล็อคสัดส่วน กว้าง / สูง ให้เท่าขนาดรูปจริง (429/135) */
+    aspect-ratio: 429 / 135;
+    height: auto;
+    /* ปล่อยให้ความสูงคำนวณอัตโนมัติ */
+
+    display: flex;
+    align-items: center;
+    /* จัดเนื้อหาให้อยู่กึ่งกลางแนวตั้ง */
+    color: #222;
+    box-sizing: border-box;
+
+    /* ปรับ Padding รวม เพื่อไม่ให้ข้อความชิดขอบรูปตั๋วเกินไป */
+    padding: 0 10px;
+}
+
+strong {
+    font-size: x-large;
+}
+
+.left-ticket {
+    width: 75%;
+    /* กะระยะให้พอดีกับฝั่งซ้ายของตั๋ว (ปรับ % ได้ถ้ารูปจริงรอยพับไม่ตรง) */
+    padding-left: 15px;
+    flex-direction: column;
+    justify-content: center;
+    gap: 10%;
+}
+
+/* --- 3. ฝั่งขวา (ปุ่ม Join) --- */
+.right-ticket {
+    width: 20%;
+    /* กะระยะสำหรับหางตั๋วฝั่งขวา */
+    height: 100%;
+    display: flex;
+    justify-content: right;
+    align-items: center;
+    padding-right: 10px;
+}
+
+/* --- 4. ปุ่ม Join --- */
+.button-join,
+.button-join-red {
+    width: 45%;
+    height: 65%;
+    /* ให้ปุ่มมีความสูงพอดีๆ กับช่องหางตั๋ว */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    font-size: 0.9em;
+    padding: 0;
+    /* ล้าง padding เดิมทิ้งไป */
+    cursor: pointer;
+    margin: 5%;
+    color: #222;
+    border-radius: 0;
+}
+
+.button-join-red {
+    background-color: #bababa;
+    cursor: not-allowed;
+}
+
+h5 {
+    margin: 0;
+    padding: 10px;
+    padding-bottom: 5px;
+}
+
+h6 {
+    margin: 0;
+    padding-left: 10px;
+    padding-bottom: 10px;
+}
+
+
+
+/* หน้าจอขนาดกลาง (Tablet) */
+@media screen and (max-width: 1024px) {
+    .room-list {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* หน้าจอขนาดเล็ก (Mobile) */
+@media screen and (max-width: 768px) {
+
+    /* หน้า Home */
+    .card-home {
+        flex-direction: column;
+        width: 90%;
+        height: 90%;
+        overflow-y: auto;
+    }
+
+    .ticket,
+    .card-head {
+        width: 100%;
+    }
+
+    .logo-text {
+        margin-top: 20px;
+    }
+
+    /* หน้า Lobby */
+    .room-list {
+        grid-template-columns: 1fr;
+        justify-items: center;
+    }
+
+    .room-cards {
+        max-width: 100%;
+        /* ให้การ์ดห้องกว้างเต็มจอในมือถือ */
+    }
+
+    /* หน้า Room: เรียง Panel จากบนลงล่างแทนการวางข้างกัน */
+    .room-content {
+        flex-direction: column;
+        height: auto;
+        flex: 1;
+        overflow-y: auto;
+        /* ให้เลื่อนลงดูแชทได้ถ้ายาว */
+    }
+
+    .side-panel {
+        width:100%;
+        background: #2a2a2a;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        border-right: 1px solid #444;
+        overflow: hidden;
+        /* 🔥 ป้องกันไม่ให้ทะลุขอบล่าง */
+    }
+
+    /* 🔥 เพิ่มบล็อกนี้เข้าไป เพื่อให้ฝั่งซ้ายเลื่อนขึ้นลงได้เวลามีคนเยอะ */
+    #memberList {
+        flex: 1;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: row;
+    }
+
+    .member-card {
+        white-space: nowrap;
+        margin-bottom: 0;
+    }
+
+    .chat-panel {
+        height: 180px;
+        /* จำกัดความสูงแชทบนมือถือ */
+        min-height: 180px;
+        margin: 5px;
+    }
+
+    .controls {
+        width: 100%;
+        flex-direction: row;
+        justify-content: center;
+        border-left: none;
+        padding: 10px 0;
+    }
+
+
+    .drum-kit {
+        grid-template-columns: repeat(3, 1fr);
+        /* กลองเรียง 3 คอลัมน์บนมือถือ */
+        gap: 10px;
+        margin: 0 auto;
+    }
+
+    .drum-pad {
+        width: 70px;
+        height: 70px;
+        font-size: 0.8em;
+    }
+}

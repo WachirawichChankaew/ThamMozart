@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ThamMozart</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    
+    <div class="container">
+        <div id="notification-area"></div>
+        <div id="home" class="screen active">
+            <img class="ring" src="assets/Vinyl.png" alt="rings" />
+            <div class="card-home">
+                <div class="ticket">
+                    <div class="form-group-home">
+                        <div class="form-group-home-inside">
+                            <span class="banner">ThamMozart</span>
+                            <span class="logo-text">
+                                <blockquote>
+                                    </blockquote><br><br>
+                                -ThamMozart
+                            </span>
+
+                        </div>
+                    </div>
+                </div>
+                <div class="card-head">
+                    <div class="card-head-inside">
+                        <label class="home-name">Enter Name</label><input type="text" id="username"
+                            placeholder="Username" onkeypress="if(event.key==='Enter') login()">
+                        <div class="button">
+                            <div class="button-outline" onclick="login()">Submit</div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div id="lobby" class="screen">
+            <div class="top-bar">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button onclick="leaveLobby()" style="background:transparent; font-size: 20px;">⬅</button>
+                    <h2 style="margin:0;">Lobby</h2>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button onclick="showCreateModal()">+ Create Room</button>
+                </div>
+            </div>
+            <div class="room-list" id="roomList"></div>
+        </div>
+
+
+        <div id="room" class="screen">
+            
+            <div class="top-bar">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button onclick="leaveRoom()" style="background:transparent; font-size: 20px;">⬅</button>
+                    <h2 id="roomTitle" style="margin:0;">Room</h2>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label style="font-size: 0.8em; color: #aaa;">Instrument:</label>
+                    <select id="roomInstSelect" onchange="changeInstrument(this.value)"
+                        style="padding: 5px; background: #333; color: white; border: 1px solid #555;">
+                        <option value="Piano">Piano</option>
+                        <option value="Guitar">Guitar</option>
+                        <option value="Bass">Bass</option>
+                        <option value="Drum">Drum</option>
+                        <option value="Singer">Singer</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="room-content">
+                <div class="side-panel">
+                    <h4 style="margin:0 0 10px 0; color:#888;">MEMBERS</h4>
+                    <div id="memberList"></div>
+                </div>
+                <div class="chat-panel">
+                    <div class="chat-history" id="chatHistory"></div>
+                    <div class="chat-input"><input type="text" id="chatMsg" placeholder="Type..."
+                            onkeypress="handleChat(event)"><button onclick="sendChat()">➤</button></div>
+                </div>
+                <div class="controls">
+                    <div class="circle-btn" id="micBtn" onclick="toggleMic()" title="Mic">Mic</div>
+                    <div class="circle-btn" id="sustainBtn" onclick="toggleSustain()" title="Sustain">Sus</div>
+                </div>
+            </div>
+
+            <div class="instrument-area" id="instrumentDeck"></div>
+            <div style="text-align: center; font-size: 0.8em; color: #666; padding: 5px;"><span id="key-hint"></span>
+            </div>
+        </div>
+
+        <div id="createModal" class="modal">
+            <div class="modal-content">
+                <h3 class="modal-lebel">🏠︎ Create Room</h3>
+                <div class="modal-form">
+                    <div class="form-group"><label>Name</label><input type="text" id="newRoomName"></div>
+                    <div class="form-group"><label>Password</label><input type="text" id="newRoomPass"></div>
+                    <div class="form-group"><label>Capacity</label><input type="number" id="newRoomCap" value="5"
+                            min="1" max="10">
+                    </div>
+                    <div class="form-group"><label>Instrument</label><select id="createInst">
+                            <option value="Piano">Piano</option>
+                            <option value="Guitar">Guitar</option>
+                            <option value="Bass">Bass</option>
+                            <option value="Drum">Drum</option>
+                            <option value="Singer">Singer</option>
+                        </select></div>
+                    <div style="text-align: right; margin-top: 20px;"><button class="red"
+                            onclick="closeModals()">Cancel</button> <button onclick="createRoom()">Create</button></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="joinModal" class="modal">
+            <div class="modal-content">
+                <h3 class="modal-lebel">Join Room</h3>
+                <div class="modal-form">
+
+
+                    <div class="form-group" id="passField"><label>Password</label><input type="password" id="joinPass">
+                    </div>
+                    <div class="form-group"><label>Instrument</label><select id="joinInst">
+                            <option value="Piano">Piano</option>
+                            <option value="Guitar">Guitar</option>
+                            <option value="Bass">Bass</option>
+                            <option value="Drum">Drum</option>
+                            <option value="Singer">Singer</option>
+                        </select></div>
+                    <div style="text-align: right; margin-top: 20px;"><button class="red"
+                            onclick="closeModals()">Cancel</button> <button onclick="confirmJoin()">Join</button></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="client.js"></script>
+</body>
+
+</html>
