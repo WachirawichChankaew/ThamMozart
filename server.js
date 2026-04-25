@@ -268,7 +268,7 @@ function sendErr(c, m) {
     }
 }
 
-const PORT = 8080;
+const PORT = process.env.PORT || 3000;;
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`ThamMozart Server running on port ${PORT}`);
 });

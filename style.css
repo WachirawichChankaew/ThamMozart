@@ -175,7 +175,8 @@ textarea {
 }
 
 .top-bar {
-    padding: 15px;
+    padding: 10px;
+    height: 10%;
     background: #1a1a1a;
     display: flex;
     justify-content: space-between;
@@ -232,7 +233,7 @@ textarea {
 }
 
 .side-panel {
-    width: 220px;
+    flex: 1;
     background: #2a2a2a;
     padding: 10px;
     display: flex;
@@ -243,7 +244,7 @@ textarea {
 }
 
 .chat-panel {
-    flex: 1;
+    flex: 0 0 50%;
     display: flex;
     flex-direction: column;
     background: #fff;
@@ -278,7 +279,7 @@ textarea {
 }
 
 .controls {
-    width: 80px;
+    flex: 0.2;
     background: #1a1a1a;
     display: flex;
     flex-direction: column;
@@ -490,7 +491,7 @@ textarea {
 
 .member-card {
     background: #3a3a3a;
-    padding: 10px;
+    padding: 5px;
     border-radius: 5px;
     margin-bottom: 5px;
     display: flex;
@@ -638,12 +639,12 @@ blockquote {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.85);
+    background: transparent; 
     display: none;
     justify-content: center;
     align-items: center;
     z-index: 100;
-    backdrop-filter: blur(5px);
+    backdrop-filter: blur(5px); 
 }
 
 .modal-form {
@@ -864,4 +865,80 @@ h6 {
         height: 70px;
         font-size: 0.8em;
     }
+}
+
+/* --- ระบบเลือกเครื่องดนตรีแบบรูปภาพแถวเดียว --- */
+.instrument-selector {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 5px;
+    width: 100%;
+}
+
+.inst-option {
+    flex: 1;
+    text-align: center;
+    padding: 10px 5px;
+    background: #444;
+    border: 2px solid #555;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #ccc;
+    font-size: 0.75em;
+    user-select: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.inst-option:hover {
+    background: #555;
+}
+
+/* สถานะเมื่อถูกเลือก */
+.inst-option.active {
+    border-color: var(--main);
+    background: #333;
+    color: var(--main);
+    box-shadow: 0 0 8px rgba(188, 164, 122, 0.4);
+}
+
+.inst-icon {
+    font-size: 1.8em;
+    margin-bottom: 5px;
+}
+
+/* ควบคุมขนาดรูปภาพเครื่องดนตรี */
+.inst-img {
+    width: 40px; /* ปรับขนาดความกว้างของรูปได้ตามต้องการ */
+    height: 40px; /* ปรับขนาดความสูงของรูป */
+    object-fit: contain; /* ทำให้รูปไม่เบี้ยว */
+    margin-bottom: 5px;
+}
+
+/* ปรับแต่งระยะห่างของตัวเลือกเครื่องดนตรีใน Top bar */
+.room-top-selector {
+    margin-top: 0;
+    width: auto;
+    gap: 5px;
+}
+
+/* ลดขนาดกล่องและตัวหนังสือใน Top bar */
+.room-top-selector .inst-option {
+    padding: 5px 2px;
+    font-size: 0.65em;
+    width: 40px;  
+    flex: none; 
+    text-align: center;
+}
+
+/* ลดขนาดรูปภาพเพื่อให้ใส่ใน Top bar ได้พอดี */
+.inst-img-small {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    margin-bottom: 2px;
 }
