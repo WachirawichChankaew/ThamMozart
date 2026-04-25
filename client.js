@@ -116,15 +116,15 @@ async function toggleMic() {
 
     if (!isMicOn) {
         try {
-            // 1. บังคับ Sample Rate เป็น 44100 Hz เสมอ ป้องกันเสียงเพี้ยนเวลาคุยข้ามอุปกรณ์
+            // 1. ยกเลิกการบังคับ Sample Rate ปล่อยให้เบราว์เซอร์ใช้ค่าที่เสถียรที่สุดของฮาร์ดแวร์ตัวเอง
             if (!micCtx || micCtx.state === 'closed') {
-                micCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
+                micCtx = new (window.AudioContext || window.webkitAudioContext)();
             }
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
                     echoCancellation: true,
                     noiseSuppression: true,
-                    autoGainControl: true // เพิ่มระบบปรับความดังเสียงอัตโนมัติ
+                    autoGainControl: true 
                 }
             });
             micStream = stream;
@@ -132,18 +132,21 @@ async function toggleMic() {
             btn.classList.add('mic-active');
 
             const source = micCtx.createMediaStreamSource(stream);
-
-            // 2. ขยายขนาด Buffer เป็น 4096 เพื่อลดการส่งข้อมูลยิบย่อย (ช่วยลดภาระเซิร์ฟเวอร์และอาการกระตุก)
             scriptProcessor = micCtx.createScriptProcessor(4096, 1, 1);
 
             scriptProcessor.onaudioprocess = (e) => {
                 if (!isMicOn || ws.readyState !== 1) return;
                 const input = e.inputBuffer.getChannelData(0);
-                const buffer = new ArrayBuffer(input.length * 2);
+                
+                const buffer = new ArrayBuffer(4 + (input.length * 2));
                 const view = new DataView(buffer);
+                
+                // ฝังค่า Sample Rate ส่งไปให้คนฟังด้วย
+                view.setFloat32(0, micCtx.sampleRate, true); 
+
                 for (let i = 0; i < input.length; i++) {
                     let s = Math.max(-1, Math.min(1, input[i]));
-                    view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+                    view.setInt16(4 + (i * 2), s < 0 ? s * 0x8000 : s * 0x7FFF, true);
                 }
                 ws.send(buffer);
             };
@@ -170,14 +173,22 @@ function stopMic() {
 function playAudioStream(buffer) {
     const audioCtx = Tone.context.rawContext;
     const view = new DataView(buffer);
-    const float32 = new Float32Array(buffer.byteLength / 2);
+    
+    // 3. แกะค่า Sample Rate ของคนพูดออกมาจาก 4 ไบต์แรก
+    const senderSampleRate = view.getFloat32(0, true);
+    
+    // อ่านข้อมูลเสียงที่เหลือ
+    const float32 = new Float32Array((buffer.byteLength - 4) / 2);
     for (let i = 0; i < float32.length; i++) {
-        const int16 = view.getInt16(i * 2, true);
+        const int16 = view.getInt16(4 + (i * 2), true);
         float32[i] = int16 < 0 ? int16 / 0x8000 : int16 / 0x7FFF;
     }
 
-    // 3. บังคับเล่นเสียงที่ 44100 Hz (ให้ตรงกับตอนส่ง) เบราว์เซอร์จะ Resample ให้อัตโนมัติถ้าเครื่องผู้ฟังใช้เรทอื่น
-    const audioBuf = audioCtx.createBuffer(1, float32.length, 44100);
+    // 4. สร้างเสียงให้ตรงกับ Sample Rate ต้นฉบับเป๊ะๆ (แก้ปัญหาเสียงยืด/แตก)
+    // เพิ่มการดัก Error เผื่อได้รับค่า Sample Rate ที่ไม่ถูกต้อง
+    if (senderSampleRate < 8000 || senderSampleRate > 96000) return;
+    
+    const audioBuf = audioCtx.createBuffer(1, float32.length, senderSampleRate);
     audioBuf.getChannelData(0).set(float32);
     const src = audioCtx.createBufferSource();
     src.buffer = audioBuf;
@@ -185,9 +196,9 @@ function playAudioStream(buffer) {
 
     const currentTime = audioCtx.currentTime;
 
-    // 4. ระบบ Jitter Buffer: ถ้าเสียงมาไม่ทัน หรือดีเลย์สะสมมากเกินไป ให้หน่วงเวลาไว้ 150ms เพื่อรอแพ็กเกจถัดไป
-    if (nextAudioTime < currentTime || nextAudioTime > currentTime + 1) {
-        nextAudioTime = currentTime + 0.15;
+    // 5. ปรับระบบ Jitter Buffer ให้ฉลาดขึ้น ถ้าเน็ตกระตุกจนเสียงขาด จะรีเซ็ตคิวเล่นใหม่แบบนุ่มนวล
+    if (nextAudioTime < currentTime) {
+        nextAudioTime = currentTime + 0.1; 
     }
 
     src.start(nextAudioTime);
