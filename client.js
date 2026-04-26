@@ -162,49 +162,46 @@ document.addEventListener('keydown', (e) => {
 // ============================================================
 
 /** เชื่อมต่อ WebSocket กับ server, auto-reconnect ทุก 3 วินาทีถ้าหลุด */
-/** เชื่อมต่อ WebSocket กับ server แบบล็อคสายซ้อน */
 function connect() {
-    // 1. ถ้ากำลังเชื่อมต่ออยู่ หรือต่อติดแล้ว ห้ามสร้างสายใหม่ซ้ำซ้อน
+    if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+    }
+
     if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) {
         return; 
     }
 
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    
-    const newWs = new WebSocket(`${protocol}//${window.location.host}`);
-    ws = newWs; 
+    const currentWs = new WebSocket(`${protocol}//${window.location.host}`);
+    ws = currentWs; // ยึดสายใหม่นี้เป็นหลัก
 
-    newWs.onopen = () => {
-        if (ws !== newWs) return; 
+    currentWs.onopen = () => {
+        if (ws !== currentWs) return; 
 
         if (pingInterval) clearInterval(pingInterval);
-        if (reconnectTimer) clearTimeout(reconnectTimer);
-
         notify('Connected', 'success');
         send('LOGIN', { name: myName, peerId: myPeerId, sessionId: mySessionId });
-        switchScreen('lobby');
+        
+        switchScreen('lobby'); 
         
         pingInterval = setInterval(() => {
-            if (ws === newWs && ws.readyState === WebSocket.OPEN) {
+            if (ws === currentWs && ws.readyState === WebSocket.OPEN) {
                 send('PING', {});
             }
         }, 3000);
     };
 
-    newWs.onmessage = (event) => {
-        if (ws !== newWs) return; 
-        try {
-            handleServerMessage(JSON.parse(event.data));
-        } catch (e) {
-            console.error('WebSocket parse error:', e);
-        }
+    currentWs.onmessage = (event) => {
+        if (ws !== currentWs) return; 
+        try { handleServerMessage(JSON.parse(event.data)); } catch (e) {}
     };
 
-    newWs.onclose = () => {
-        if (ws !== newWs) return; 
+    currentWs.onclose = () => {
+        if (ws !== currentWs) return; 
 
         if (pingInterval) clearInterval(pingInterval); 
-        notify('Internet connection lost. Reconnecting...', 'error');
+        notify('สัญญาณเน็ตขาดหาย กำลังเชื่อมต่อใหม่...', 'error');
         stopMic();
 
         Object.values(activeCalls).forEach(call => { try { call.close(); } catch(e){} });
@@ -215,15 +212,11 @@ function connect() {
         const deck = document.getElementById('instrumentDeck');
         if (deck) deck.innerHTML = '';
 
-        if (reconnectTimer) clearTimeout(reconnectTimer);
-        reconnectTimer = setTimeout(connect, 3000); 
+        reconnectTimer = setTimeout(connect, 3000);
 
-        if (peer && peer.disconnected && !peer.destroyed && !isPeerReconnecting) {
-            isPeerReconnecting = true;
-            setTimeout(() => {
-                if (peer.disconnected) peer.reconnect();
-                isPeerReconnecting = false;
-            }, 3000);
+        // ปลุกไมค์
+        if (peer && peer.disconnected && !peer.destroyed) {
+            setTimeout(() => { if (peer.disconnected) peer.reconnect(); }, 3000);
         }
     };
 }
