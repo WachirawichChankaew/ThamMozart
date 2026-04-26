@@ -48,6 +48,8 @@ function notify(msg, type = 'info') {
 // --- WebSocket ---
 let ws;                         // WebSocket connection กับ server
 let pingInterval;
+let reconnectTimer = null;       //ตัวบล็อกการ Reconnect ทับซ้อน
+let isPeerReconnecting = false;  //ตัวบล็อกการสแปมเซิร์ฟเวอร์เสียง
 // --- ข้อมูลผู้ใช้และห้อง ---
 let myName = '';                // ชื่อผู้ใช้
 let myId = '';                  // ID ที่ server กำหนดให้
@@ -155,14 +157,23 @@ document.addEventListener('keydown', (e) => {
 // ============================================================
 
 /** เชื่อมต่อ WebSocket กับ server, auto-reconnect ทุก 3 วินาทีถ้าหลุด */
+/** เชื่อมต่อ WebSocket กับ server แบบล็อคสายซ้อน */
 function connect() {
+    if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) {
+        return; 
+    }
+
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     ws = new WebSocket(`${protocol}//${window.location.host}`);
 
     ws.onopen = () => {
+        if (pingInterval) clearInterval(pingInterval);
+        if (reconnectTimer) clearTimeout(reconnectTimer);
+
         notify('Connected', 'success');
         send('LOGIN', { name: myName, peerId: myPeerId });
         switchScreen('lobby');
+        
         pingInterval = setInterval(() => {
             send('PING', {});
         }, 3000);
@@ -177,7 +188,7 @@ function connect() {
     };
 
     ws.onclose = () => {
-        clearInterval(pingInterval); 
+        if (pingInterval) clearInterval(pingInterval); 
         notify('สัญญาณเน็ตขาดหาย กำลังเชื่อมต่อใหม่...', 'error');
         stopMic();
 
@@ -186,13 +197,18 @@ function connect() {
         Object.values(remoteAudios).forEach(a => { a.srcObject = null; a.remove(); });
         remoteAudios = {};
         currentInst = '';
-        document.getElementById('instrumentDeck').innerHTML = '';
+        const deck = document.getElementById('instrumentDeck');
+        if (deck) deck.innerHTML = '';
+        if (reconnectTimer) clearTimeout(reconnectTimer);
+        reconnectTimer = setTimeout(connect, 3000); 
 
-        if (peer && peer.disconnected && !peer.destroyed) {
-            peer.reconnect();
+        if (peer && peer.disconnected && !peer.destroyed && !isPeerReconnecting) {
+            isPeerReconnecting = true;
+            setTimeout(() => {
+                if (peer.disconnected) peer.reconnect();
+                isPeerReconnecting = false;
+            }, 3000);
         }
-
-        setTimeout(connect, 3000); 
     };
 }
 
@@ -274,10 +290,19 @@ async function login() {
             resetLoginButton(btn);
         });
 
-        // รับสายเข้าจากเพื่อน — ตอบด้วย mixedStream (mic + ดนตรีของเรา)
         peer.on('call', (call) => {
             call.answer(mixedStream);
             handleCall(call);
+        });
+
+        peer.on('disconnected', () => {
+            if (peer && !peer.destroyed && !isPeerReconnecting) {
+                isPeerReconnecting = true;
+                setTimeout(() => {
+                    if (peer.disconnected) peer.reconnect();
+                    isPeerReconnecting = false;
+                }, 3000); 
+            }
         });
 
     } catch (e) {
