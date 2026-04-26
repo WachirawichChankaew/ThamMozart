@@ -875,7 +875,7 @@ function showCreateModal() {
 
 /** ออกจาก Lobby กลับหน้าแรก */
 function leaveLobby() {
-    switchScreen('home');
+    window.location.reload();
 }
 
 /** ส่งคำสั่งเปลี่ยนเครื่องดนตรีไปยัง server */
