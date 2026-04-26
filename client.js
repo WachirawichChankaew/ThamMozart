@@ -361,7 +361,11 @@ function stopMic() {
     if (micGain && sharedCtx) {
         micGain.gain.setTargetAtTime(0, sharedCtx.currentTime, 0.015);
     }
-    document.getElementById('micBtn').classList.remove('mic-active');
+    if (micStream) {
+        micStream.getTracks().forEach(track => track.stop());
+    }
+    const btn = document.getElementById('micBtn');
+    if (btn) btn.classList.remove('mic-active');
 }
 
 // ============================================================
@@ -914,25 +918,22 @@ function enterRoom(data) {
 }
 
 // ส่ง LEAVE_ROOM ก่อนปิดหน้าต่าง 
+
 function cleanupConnection() {
-    // ส่งคำสั่งบอก Server ว่าออกห้อง และปิด WebSocket ทันที
+    stopMic();
     if (ws && ws.readyState === WebSocket.OPEN) {
         send('LEAVE_ROOM', {});
         ws.close(); 
     }
     
-    // 2. ตัดสายโทรศัพท์ WebRTC ทิ้งทั้งหมด 
     if (peer && !peer.destroyed) {
         peer.destroy();
     }
 }
+
 // สำหรับเบราว์เซอร์บนคอมพิวเตอร์ (PC / Mac)
 window.addEventListener('beforeunload', cleanupConnection);
 
 // สำหรับเบราว์เซอร์บนมือถือ (iOS Safari / Android Chrome)
 window.addEventListener('pagehide', cleanupConnection);
 window.addEventListener('unload', cleanupConnection);
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-    }
-});
