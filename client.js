@@ -951,6 +951,5 @@ window.addEventListener('beforeunload', cleanupConnection, false);
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
         cleanupConnection(); 
-        window.location.reload(); 
     }
 });
