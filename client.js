@@ -947,9 +947,17 @@ window.addEventListener('pagehide', cleanupConnection, false);
 window.addEventListener('unload', cleanupConnection, false);
 window.addEventListener('beforeunload', cleanupConnection, false);
 
+let disconnectTimer;
+
 // (ตรวจจับการสลับแท็บ หรือพับหน้าจอแอป)
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
-        cleanupConnection(); 
+        disconnectTimer = setTimeout(() => {
+            cleanupConnection(); 
+            window.location.reload(); 
+        }, 10000); 
+        
+    } else if (document.visibilityState === 'visible') {
+        clearTimeout(disconnectTimer);
     }
 });
