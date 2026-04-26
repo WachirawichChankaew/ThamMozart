@@ -177,9 +177,21 @@ function connect() {
     };
 
     ws.onclose = () => {
-        clearInterval(pingInterval);
-        notify('Disconnected', 'error');
+        clearInterval(pingInterval); 
+        notify('สัญญาณเน็ตขาดหาย กำลังเชื่อมต่อใหม่...', 'error');
         stopMic();
+
+        Object.values(activeCalls).forEach(call => { try { call.close(); } catch(e){} });
+        activeCalls = {};
+        Object.values(remoteAudios).forEach(a => { a.srcObject = null; a.remove(); });
+        remoteAudios = {};
+        currentInst = '';
+        document.getElementById('instrumentDeck').innerHTML = '';
+
+        if (peer && peer.disconnected && !peer.destroyed) {
+            peer.reconnect();
+        }
+
         setTimeout(connect, 3000); 
     };
 }
@@ -249,6 +261,12 @@ async function login() {
             myPeerId = id;
             connect();               // เชื่อม WebSocket หลังได้ PeerID แล้ว
             resetLoginButton(btn);
+        });
+
+        peer.on('disconnected', () => {
+            if (peer && !peer.destroyed) {
+                peer.reconnect();
+            }
         });
 
         peer.on('error', (err) => {
