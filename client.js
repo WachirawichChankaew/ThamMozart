@@ -905,7 +905,7 @@ function cleanupConnection() {
         ws.close(); 
     }
     
-    // 2. ตัดสายโทรศัพท์ WebRTC ทิ้งทั้งหมด (ป้องกันเสียงผี หรือสายค้าง)
+    // 2. ตัดสายโทรศัพท์ WebRTC ทิ้งทั้งหมด 
     if (peer && !peer.destroyed) {
         peer.destroy();
     }
