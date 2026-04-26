@@ -1036,7 +1036,7 @@ document.addEventListener('visibilitychange', () => {
         disconnectTimer = setTimeout(() => {
             cleanupConnection(); 
             window.location.reload(); 
-        }, 10000); 
+        }, 60000); 
         
     } else if (document.visibilityState === 'visible') {
         clearTimeout(disconnectTimer);
