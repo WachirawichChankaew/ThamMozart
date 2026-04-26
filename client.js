@@ -265,7 +265,6 @@ async function login() {
 
         peer.on('error', (err) => {
             console.error('PeerJS error:', err);
-            notify('Voice error: ' + err.type, 'error');
             resetLoginButton(btn);
         });
 
@@ -898,10 +897,26 @@ function enterRoom(data) {
     renderInstrument(data.instrument);
 }
 
-// ส่ง LEAVE_ROOM ก่อนปิดหน้าต่าง (best effort — ไม่รับประกันว่า browser จะส่งทัน)
-window.addEventListener('beforeunload', () => {
+// ส่ง LEAVE_ROOM ก่อนปิดหน้าต่าง 
+function cleanupConnection() {
+    // ส่งคำสั่งบอก Server ว่าออกห้อง และปิด WebSocket ทันที
     if (ws && ws.readyState === WebSocket.OPEN) {
         send('LEAVE_ROOM', {});
-        ws.close();
+        ws.close(); 
+    }
+    
+    // 2. ตัดสายโทรศัพท์ WebRTC ทิ้งทั้งหมด (ป้องกันเสียงผี หรือสายค้าง)
+    if (peer && !peer.destroyed) {
+        peer.destroy();
+    }
+}
+// สำหรับเบราว์เซอร์บนคอมพิวเตอร์ (PC / Mac)
+window.addEventListener('beforeunload', cleanupConnection);
+
+// สำหรับเบราว์เซอร์บนมือถือ (iOS Safari / Android Chrome)
+window.addEventListener('pagehide', cleanupConnection);
+window.addEventListener('unload', cleanupConnection);
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
     }
 });
