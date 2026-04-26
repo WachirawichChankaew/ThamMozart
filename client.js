@@ -199,7 +199,7 @@ function connect() {
         if (ws !== newWs) return; 
 
         if (pingInterval) clearInterval(pingInterval); 
-        notify('สัญญาณเน็ตขาดหาย กำลังเชื่อมต่อใหม่...', 'error');
+        notify('Internet connection lost. Reconnecting...', 'error');
         stopMic();
 
         Object.values(activeCalls).forEach(call => { try { call.close(); } catch(e){} });
