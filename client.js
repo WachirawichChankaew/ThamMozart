@@ -235,22 +235,6 @@ async function login() {
         await Tone.start();  // ปลดล็อก AudioContext (browser บังคับให้รอ user gesture)
         await initAudio();   // โหลด instruments และสร้าง audio graph
 
-        // ขอสิทธิ์ไมค์ — ถ้าไม่มีก็ยังเล่นดนตรีได้
-        try {
-            micStream = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    echoCancellation: true,  // ตัดเสียงสะท้อน (echo)
-                    noiseSuppression: true,  // ลด noise พื้นหลัง
-                    autoGainControl: true    // ปรับ volume อัตโนมัติ
-                }
-            });
-            // เชื่อม mic track เข้า Web Audio graph: mic → micGain → micDest
-            micSourceNode = sharedCtx.createMediaStreamSource(micStream);
-            micSourceNode.connect(micGain);
-        } catch (micErr) {
-            notify('ไม่มีไมค์ — เล่นดนตรีได้อย่างเดียว', 'info');
-        }
-
         // สร้าง PeerJS — ใช้ STUN server ของ Google สำหรับ NAT traversal
         peer = new Peer(undefined, {
             config: {
@@ -344,20 +328,42 @@ function handleCall(call) {
 
 /**
  * toggleMic() — เปิด/ปิดไมค์
- * ใช้ GainNode.gain แทน track.enabled เพื่อให้ smooth และไม่มีเสียงคลิก
  */
-function toggleMic() {
-    isMicOn = !isMicOn;
-    if (micGain && sharedCtx) {
-        // setTargetAtTime = fade ใน 15ms แทนการตัดกระทันหัน
-        micGain.gain.setTargetAtTime(isMicOn ? 1.0 : 0, sharedCtx.currentTime, 0.015);
+async function toggleMic() {
+    const btn = document.getElementById('micBtn');
+
+    if (!isMicOn) {
+        if (!micStream || !micStream.active || micStream.getTracks()[0].readyState === 'ended') {
+            try {
+                micStream = await navigator.mediaDevices.getUserMedia({
+                    audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+                });
+        
+                if (micSourceNode) micSourceNode.disconnect();
+                micSourceNode = sharedCtx.createMediaStreamSource(micStream);
+                micSourceNode.connect(micGain);
+                
+            } catch(e) {
+                notify("ไม่สามารถเปิดไมค์ได้ กรุณาอนุญาตการเข้าถึง", "error");
+                return; 
+            }
+        }
+        
+        isMicOn = true;
+        if (micGain && sharedCtx) micGain.gain.setTargetAtTime(1.0, sharedCtx.currentTime, 0.015);
+        btn.classList.add('mic-active');
+        
+    } else {
+        isMicOn = false;
+        if (micGain && sharedCtx) micGain.gain.setTargetAtTime(0, sharedCtx.currentTime, 0.015);
+        btn.classList.remove('mic-active');
     }
-    document.getElementById('micBtn').classList.toggle('mic-active', isMicOn);
 }
 
 /** stopMic() — ปิดไมค์ (เรียกตอนออกจากห้อง) */
 function stopMic() {
     isMicOn = false;
+    
     try {
         if (micGain && sharedCtx) {
             micGain.gain.setTargetAtTime(0, sharedCtx.currentTime, 0.015);
@@ -365,10 +371,12 @@ function stopMic() {
         if (micStream) {
             micStream.getTracks().forEach(track => {
                 track.enabled = false;
-                track.stop();
+                track.stop(); 
             });
+            micStream = null; 
         }
     } catch(e) { console.log("Mic stop error:", e); }
+    
     const btn = document.getElementById('micBtn');
     if (btn) btn.classList.remove('mic-active');
 }
