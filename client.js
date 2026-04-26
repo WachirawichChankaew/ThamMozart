@@ -358,12 +358,17 @@ function toggleMic() {
 /** stopMic() — ปิดไมค์ (เรียกตอนออกจากห้อง) */
 function stopMic() {
     isMicOn = false;
-    if (micGain && sharedCtx) {
-        micGain.gain.setTargetAtTime(0, sharedCtx.currentTime, 0.015);
-    }
-    if (micStream) {
-        micStream.getTracks().forEach(track => track.stop());
-    }
+    try {
+        if (micGain && sharedCtx) {
+            micGain.gain.setTargetAtTime(0, sharedCtx.currentTime, 0.015);
+        }
+        if (micStream) {
+            micStream.getTracks().forEach(track => {
+                track.enabled = false;
+                track.stop();
+            });
+        }
+    } catch(e) { console.log("Mic stop error:", e); }
     const btn = document.getElementById('micBtn');
     if (btn) btn.classList.remove('mic-active');
 }
