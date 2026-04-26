@@ -12,7 +12,7 @@
  *  6. ระบบ Login และ WebRTC (Voice)
  *  7. การแสดงผล UI (Lobby, Room, Members, Chat)
  *  8. Audio Engine (Tone.js + Web Audio API)
- *  9. การวาดเครื่องดนตรี (Piano, Drum, Guitar, Bass, Singer)
+ *  9. เครื่องดนตรี (Piano, Drum, Guitar, Bass, Singer)
  * 10. ฟังก์ชันช่วยเหลือ (Helpers)
  */
 
@@ -946,3 +946,11 @@ function cleanupConnection() {
 window.addEventListener('pagehide', cleanupConnection, false);
 window.addEventListener('unload', cleanupConnection, false);
 window.addEventListener('beforeunload', cleanupConnection, false);
+
+// (ตรวจจับการสลับแท็บ หรือพับหน้าจอแอป)
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+        cleanupConnection(); 
+        window.location.reload(); 
+    }
+});
