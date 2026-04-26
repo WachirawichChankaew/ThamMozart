@@ -78,8 +78,20 @@ function handleMessage(c, m) {
     c.lastPing = Date.now();
     switch (m.type) {
         case 'PING': break;
-        case 'LOGIN': // เมื่อกรอกชื่อเข้าสู่ระบบ
-            c.name = m.payload.name; sendRoomList(c); break;
+        case 'LOGIN': 
+            c.name = m.payload.name; 
+            c.peerId = m.payload.peerId; 
+            c.sessionId = m.payload.sessionId; 
+            
+            clients.forEach(oldClient => {
+                if (oldClient.id !== c.id && oldClient.sessionId === c.sessionId) {
+                    handleDisconnect(oldClient); 
+                    oldClient.socket.destroy();  
+                }
+            });
+
+            sendRoomList(c); 
+            break;
         case 'CREATE_ROOM':// สร้างห้องใหม่
             const roomId = crypto.randomUUID();
             rooms[roomId] = { id: roomId, name: m.payload.roomName, password: m.payload.password, capacity: m.payload.capacity, users: [] };
@@ -182,7 +194,7 @@ setInterval(() => {
     const now = Date.now();
     clients.forEach(c => {
         // ถ้าเงียบหายไปเกิน 10 วินาที (แปลว่าปัดแอปทิ้ง หรือเน็ตหลุด)
-        if (now - c.lastPing > 3000) { 
+        if (now - c.lastPing > 10000) { 
             handleDisconnect(c);
             c.socket.destroy(); // ตัดการเชื่อมต่อทันที
         }

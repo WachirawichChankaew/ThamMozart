@@ -50,6 +50,11 @@ let ws;                         // WebSocket connection กับ server
 let pingInterval;
 let reconnectTimer = null;       //ตัวบล็อกการ Reconnect ทับซ้อน
 let isPeerReconnecting = false;  //ตัวบล็อกการสแปมเซิร์ฟเวอร์เสียง
+let mySessionId = sessionStorage.getItem('mySessionId');
+if (!mySessionId) {
+    mySessionId = Math.random().toString(36).substring(2, 15);
+    sessionStorage.setItem('mySessionId', mySessionId);
+}
 // --- ข้อมูลผู้ใช้และห้อง ---
 let myName = '';                // ชื่อผู้ใช้
 let myId = '';                  // ID ที่ server กำหนดให้
@@ -176,7 +181,7 @@ function connect() {
         if (reconnectTimer) clearTimeout(reconnectTimer);
 
         notify('Connected', 'success');
-        send('LOGIN', { name: myName, peerId: myPeerId });
+        send('LOGIN', { name: myName, peerId: myPeerId, sessionId: mySessionId });
         switchScreen('lobby');
         
         pingInterval = setInterval(() => {
