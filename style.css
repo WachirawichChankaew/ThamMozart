@@ -1,10 +1,18 @@
+/* ==========================================================================
+   ThamMozart - Main Stylesheet
+   โครงสร้างถูกจัดหมวดหมู่ใหม่ เพื่อให้ง่ายต่อการอ่านและแก้ไขในอนาคต
+========================================================================== */
+
+/* ---------------------------------------------------
+   1. VARIABLES & FONTS (ตัวแปรสีและฟอนต์พื้นฐาน)
+--------------------------------------------------- */
 :root {
-    --main: rgb(188, 164, 122);
-    --bg: #222;
-    --panel: #333;
-    --text: #fff;
-    --daTestnger: #ff4444;
-    --success: #00C851;
+    --main: rgb(188, 164, 122);  /* สีหลักของเว็บ (สีทอง/ครีม) */
+    --bg: #222;                  /* สีพื้นหลังทั่วไป */
+    --panel: #333;               /* สีพื้นหลังของกล่องหรือพาเนล */
+    --text: #fff;                /* สีตัวอักษรหลัก */
+    --danger: #ff4444;           /* สีแดงสำหรับแจ้งเตือน/ปุ่มปิดไมค์ */
+    --success: #00C851;          /* สีเขียวสำหรับสถานะสำเร็จ/เปิด Sustain */
 }
 
 @font-face {
@@ -15,26 +23,19 @@
 
 body {
     margin: 0;
-    font-family: "Default_Font";
-    background-color: var(--bg);
+    font-family: "Default_Font", sans-serif;
+    background-color: #4c0000;   /* สีพื้นหลังหลักของเว็บ */
     color: var(--text);
-    overflow: hidden;
-    background-color: #4c0000;
+    overflow: hidden;            /* ป้องกันการเลื่อนหน้าจอทั้งเว็บ */
 }
 
+/* ---------------------------------------------------
+   2. BACKGROUNDS & ANIMATIONS (พื้นหลังและแอนิเมชัน)
+--------------------------------------------------- */
 .container {
     background-image: url('assets/cover-pattern.webp');
     background-size: 10px 10px;
     min-height: 100vh;
-}
-
-.card-home {
-    display: flex;
-    width: 70%;
-    height: 70%;
-    background: none;
-    border-radius: 10px;
-    gap: 5px;
 }
 
 .ring {
@@ -46,43 +47,44 @@ body {
     pointer-events: none;
     transform: translate(-38%, -55%) rotate(0deg);
     will-change: transform;
-    animation: ring-spin 10s infinite linear;
+    animation: ring-spin 10s infinite linear; /* หมุนแผ่นเสียงในหน้า Home */
 }
 
 @keyframes ring-spin {
-    from {
-        transform: translate(-38%, -55%) rotate(0deg);
-    }
-
-    to {
-        transform: translate(-38%, -55%) rotate(-360deg);
-    }
+    from { transform: translate(-38%, -55%) rotate(0deg); }
+    to { transform: translate(-38%, -55%) rotate(-360deg); }
 }
 
-.screen {
-    display: none;
-    height: 100vh;
-    flex-direction: column;
+@keyframes stringVibrate {
+    /* เอฟเฟกต์สายกีตาร์/เบสสั่น */
+    0% { transform: translateX(0); }
+    20% { transform: translateX(-5px) scaleY(1.5); }
+    40% { transform: translateX(5%) scaleY(1.1); }
+    60% { transform: translateX(-3px) scaleY(1.4); }
+    80% { transform: translateX(3px) scaleY(1.2); }
+    100% { transform: translateX(0) scaleY(1.0); }
 }
 
-.form-group-home {
-    background-image: url("assets/ticket-head.webp");
-    background-size: 100% 100%;
-    margin: 0px;
-    overflow: hidden;
-    background-repeat: no-repeat;
-    height: 100%;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
-    gap: 10px;
+@keyframes pulse {
+    /* เอฟเฟกต์ไฟกะพริบสำหรับปุ่มไมค์ */
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.7); }
+    70% { transform: scale(1.1); box-shadow: 0 0 0 10px rgba(255, 68, 68, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 68, 68, 0); }
 }
 
-.ticket {
-    width: 40%;
+@keyframes slideIn {
+    /* เอฟเฟกต์การเลื่อนเข้าของ Toast Notification */
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
 }
 
-.active {
-    display: flex;
-}
+/* ---------------------------------------------------
+   3. COMMON COMPONENTS (ปุ่ม, ฟอร์ม, UI กลางที่ใช้ร่วมกัน)
+--------------------------------------------------- */
+h5 { margin: 0; padding: 10px; padding-bottom: 5px; }
+h6 { margin: 0; padding-left: 10px; padding-bottom: 10px; }
+strong { font-size: x-large; }
+blockquote { margin: 0; }
 
 button {
     background: var(--main);
@@ -95,19 +97,38 @@ button {
     transition: 0.2s;
 }
 
-button:hover {
-    filter: brightness(1.1);
-}
+button:hover { filter: brightness(1.1); }
 
 button.red {
     background: rgb(210, 209, 214);
     color: rgb(33, 37, 41);
 }
 
-input,
-select,
-textarea {
-    font-family: "Default_Font";
+.button {
+    background-color: #ffffff;
+    border-radius: 50px;
+    width: 206px;
+    padding: 2.5px 2px 2px 2.5px;
+    border: 1px solid #e6e6e6;
+    cursor: pointer;
+}
+
+.button-outline {
+    padding: 5px 2px;
+    color: #222;
+    background-color: #ffffff;
+    border: 1px solid #e6e6e6;
+    border-radius: 40px;
+    width: 200px;
+    font-size: smaller;
+    cursor: pointer;
+}
+
+.button:hover { background-color: #222; border: 1px solid #222; }
+.button-outline:hover { color: var(--main); border: 1px solid var(--main); }
+
+input, select, textarea {
+    font-family: "Default_Font", sans-serif;
     padding: 10px;
     border-radius: 5px;
     border: 1px solid #555;
@@ -116,62 +137,17 @@ textarea {
     outline: none;
 }
 
-#notification-area {
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 9999;
-    display: flex;
+/* ---------------------------------------------------
+   4. SCREENS & MAIN LAYOUT (โครงสร้างหน้าเว็บหลัก)
+--------------------------------------------------- */
+.screen {
+    display: none;
+    height: 100vh;
     flex-direction: column;
-    gap: 10px;
 }
 
-.toast {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-width: 280px;
-    padding: 12px 20px;
-    background: rgba(34, 34, 34, 0.85);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    color: var(--text);
-    border-radius: 8px;
-    border: 1px solid var(--main);
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
-    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-    animation: slideIn 0.4s ease forwards;
-}
-
-.toast.info {
-    border-left: 5px solid var(--main);
-}
-
-.toast.success {
-    border-left: 5px solid var(--success);
-}
-
-.toast.error {
-    border-left: 5px solid var(--danger);
-}
-
-@keyframes slideIn {
-    from {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
-}
-
-#home {
-    align-items: center;
-    justify-content: center;
-    text-align: center;
+.screen.active {
+    display: flex; 
 }
 
 .top-bar {
@@ -184,6 +160,84 @@ textarea {
     border-bottom: 2px solid var(--main);
 }
 
+/* ---------------------------------------------------
+   5. HOME & LOGIN SCREEN (หน้าแรกสำหรับกรอกชื่อ)
+--------------------------------------------------- */
+#home {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.card-home {
+    display: flex;
+    width: 70%;
+    height: 70%;
+    background: none;
+    border-radius: 10px;
+    gap: 5px;
+}
+
+.ticket { width: 40%; }
+
+.form-group-home {
+    background-image: url("assets/ticket-head.webp");
+    background-size: 100% 100%;
+    margin: 0px;
+    overflow: hidden;
+    background-repeat: no-repeat;
+    height: 100%;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+    gap: 10px;
+}
+
+.card-head {
+    width: 100%;
+    height: 99%;
+    margin-top: 5px;
+    background-color: rgb(255, 255, 255);
+    border-top-left-radius: 25px;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+}
+
+.card-head-inside {
+    background-image: url("assets/white.webp");
+    background-size: 100% 100%;
+    width: 100%;
+    height: 100%;
+    border-top-left-radius: 25px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+
+.card-head-inside input, .card-head-inside button { width: 50%; }
+
+.home-name { color: #222; }
+.banner {
+    display: block;
+    background-color: var(--main);
+    border-radius: 0 100px 100px 0;
+    color: #222;
+    padding: 3px;
+    text-align: center;
+    width: 60%;
+    margin-top: 20px;
+    font-weight: lighter;
+}
+
+.logo-text {
+    display: block;
+    margin-top: 150px;
+    padding: 20px;
+    text-align: right;
+}
+
+/* ---------------------------------------------------
+   6. LOBBY SCREEN & ROOM CARDS (หน้าเลือกร่วมห้อง)
+--------------------------------------------------- */
 .room-list {
     flex: 3;
     padding: 20px;
@@ -204,6 +258,100 @@ textarea {
     border-left: 5px solid var(--main);
 }
 
+.room-cards {
+    background-image: url(assets/TicketRoom.png);
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    width: 100%;
+    max-width: 429px;
+    aspect-ratio: 429 / 135;
+    height: auto;
+    display: flex;
+    align-items: center;
+    color: #222;
+    box-sizing: border-box;
+    padding: 0 10px;
+}
+
+.left-ticket {
+    width: 75%;
+    padding-left: 15px;
+    flex-direction: column;
+    justify-content: center;
+    gap: 10%;
+}
+
+.right-ticket {
+    width: 20%;
+    height: 100%;
+    display: flex;
+    justify-content: right;
+    align-items: center;
+    padding-right: 10px;
+}
+
+.button-join, .button-join-red {
+    width: 45%;
+    height: 65%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    font-size: 0.9em;
+    padding: 0;
+    cursor: pointer;
+    margin: 5%;
+    color: #222;
+    border-radius: 0;
+}
+
+.button-join-red {
+    background-color: #bababa;
+    cursor: not-allowed;
+}
+
+/* ---------------------------------------------------
+   7. MODALS (หน้าต่าง Pop-up เช่น สร้างห้อง/เข้าห้อง)
+--------------------------------------------------- */
+.modal {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: transparent;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    border: 1px solid #222;
+    border-radius: 10px;
+    background-color: #4e4e4e;
+}
+
+.modal-lebel {
+    margin: 0;
+    padding: 20px;
+    background-color: rgb(233, 231, 226);
+    color: #222;
+    border-radius: 10px 10px 0 0;
+    margin-bottom: 0.5px;
+}
+
+.modal-form {
+    background: rgb(233, 231, 226);
+    color: rgb(104, 104, 104);
+    padding: 25px;
+    border-radius: 0 0 10px 10px;
+    width: 320px;
+    font-weight: lighter;
+}
+
+.modal-form label, .modal-form input, .modal-form select {
+    width: 100%;
+}
+
 .form-group label {
     display: block;
     margin-bottom: 5px;
@@ -212,14 +360,16 @@ textarea {
     color: rgb(104, 104, 104);
 }
 
-.form-group input,
-.form-group select {
-    width: 30%;
+.form-group input, .form-group select {
+    width: 100%;
     box-sizing: border-box;
     margin-bottom: 10px;
     font-weight: lighter;
 }
 
+/* ---------------------------------------------------
+   8. ROOM SCREEN (หน้าห้องเล่นดนตรี, แชท, รายชื่อสมาชิก)
+--------------------------------------------------- */
 .room-layout {
     display: flex;
     flex: 1;
@@ -232,6 +382,7 @@ textarea {
     min-height: 0; 
 }
 
+/* พาเนลฝั่งซ้าย (รายชื่อคน) */
 .side-panel {
     flex: 1;
     background: #2a2a2a;
@@ -243,6 +394,42 @@ textarea {
     min-height: 0; 
 }
 
+#memberList {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); 
+    gap: 10px;
+    margin-top: 15px;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0; 
+    width: 100%;
+    align-content: start;
+}
+
+.member-card {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 10px 12px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0; 
+    box-sizing: border-box;
+}
+
+.member-card > div:last-child {
+    overflow: hidden;
+    width: 100%;
+}
+
+.member-card h5, .member-card h6 {
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; 
+}
+
+/* พาเนลตรงกลาง (แชท) */
 .chat-panel {
     flex: 0 0 50%;
     display: flex;
@@ -263,6 +450,39 @@ textarea {
     gap: 5px;
 }
 
+.chat-msg {
+    background: #e0e0e0;
+    padding: 8px 12px;
+    border-radius: 15px;
+    margin-bottom: 2px;
+    display: inline-block;
+    max-width: 30%;
+    color: #000;
+    font-size: 0.95em;
+    position: relative;
+    word-wrap: break-word;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+
+.chat-msg.self {
+    background: var(--main);
+    color: white;
+    align-self: flex-end;
+    border-bottom-right-radius: 2px;
+}
+
+.chat-msg:not(.self) { border-bottom-left-radius: 2px; }
+
+.sender-name {
+    font-size: 0.7em;
+    color: #666;
+    margin-bottom: 2px;
+    margin-left: 5px;
+}
+
+.self + .sender-name { display: none; }
+
 .chat-input {
     display: flex;
     padding: 5px;
@@ -278,6 +498,7 @@ textarea {
     padding: 10px;
 }
 
+/* พาเนลฝั่งขวา (ปุ่มควบคุม ไมค์/Sustain) */
 .controls {
     flex: 0.2;
     background: #1a1a1a;
@@ -304,12 +525,15 @@ textarea {
     border: 2px solid #555;
     position: relative;
     user-select: none;
-    /* ป้องกันการคลุมดำเวลากดรัวๆ */
 }
 
-.circle-btn:hover {
-    background: #555;
+.circle-btn svg {
+    width: 60%;
+    height: 60%;
+    transition: all 0.2s; 
 }
+
+.circle-btn:hover { background: #555; }
 
 .mic-active {
     background: var(--danger) !important;
@@ -325,448 +549,9 @@ textarea {
     box-shadow: 0 0 10px var(--success);
 }
 
-@keyframes pulse {
-    0% {
-        transform: scale(1);
-        box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.7);
-    }
-
-    70% {
-        transform: scale(1.1);
-        box-shadow: 0 0 0 10px rgba(255, 68, 68, 0);
-    }
-
-    100% {
-        transform: scale(1);
-        box-shadow: 0 0 0 0 rgba(255, 68, 68, 0);
-    }
-}
-
-.instrument-area {
-    flex: 0 0 45%; 
-    height: 45%;
-    background: #111;
-    border-top: 2px solid var(--main);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    position: relative;
-    user-select: none;
-    overflow-x: auto;
-    overflow-y: hidden;
-}
-
-.piano {
-    display: flex;
-    height: 100%;
-    position: relative;
-    width: 70%;
-    justify-content: center;
-
-}
-
-.key {
-    border: 1px solid #ccc;
-    cursor: pointer;
-    border-bottom-left-radius: 5px;
-    border-bottom-right-radius: 5px;
-    transition: background 0.1s;
-    position: relative;
-
-}
-
-.key::after {
-    content: attr(data-key);
-    position: absolute;
-    bottom: 5px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 10px;
-    color: #555;
-}
-
-.white {
-    background: white;
-    flex: 1;
-    height: 80%;
-    z-index: 1;
-}
-
-.white:active,
-.white.hit {
-    background: #ddd;
-    transform: scale(0.98);
-    transform-origin: top;
-}
-
-.black {
-    background: #111;
-    width: 2.5%;
-    /* ปรับความกว้างให้สมส่วนกับ Flex */
-    height: 50%;
-    margin-left: -1.25%;
-    margin-right: -1.25%;
-    z-index: 2;
-    position: relative;
-    border-bottom: 4px solid #000;
-}
-
-.black:active,
-.black.hit {
-    background: #333;
-    border-bottom: 2px solid #000;
-}
-
-.guitar-board {
-    width: 90%;
-    height: 80%;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-around;
-    background: #222;
-    border-radius: 10px;
-    padding: 10px;
-    position: relative;
-    touch-action: none;
-}
-
-.string {
-    height: 3px;
-    background: #888;
-    position: relative;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    transition: 0.1s;
-}
-
-.string:active,
-.string.hit {
-    transform: scaleY(1.5);
-    box-shadow: 0 0 5px var(--main);
-}
-
-.string-label {
-    margin-left: -30px;
-    color: var(--main);
-    font-weight: bold;
-    width: 20px;
-    text-align: center;
-}
-
-/* 1. คุมกล่องใหญ่ให้เป็น Grid 2 คอลัมน์ (ใช้เครื่องหมาย # เพราะเป็น ID) */
-#memberList {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    margin-top: 15px;
-    overflow-y: auto;
-    flex: 1; 
-    min-height: 0; 
-    width: 100%;
-    align-content: start;
-}
-
-/* 2. ปรับขนาดการ์ดแต่ละใบไม่ให้เบียดกัน */
-.member-card {
-    background: rgba(255, 255, 255, 0.1);
-    padding: 10px 12px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 0; 
-    box-sizing: border-box;
-}
-
-/* 3. บังคับให้กรอบข้อความอยู่ข้างในการ์ดเท่านั้น */
-.member-card > div:last-child {
-    overflow: hidden;
-    width: 100%;
-}
-
-/* 4. ถ้าชื่อหรือเครื่องดนตรียาวเกินไป ให้ตัดจบด้วย ... */
-.member-card h5, .member-card h6 {
-    margin: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.chat-msg {
-    background: #e0e0e0;
-    padding: 8px 12px;
-    border-radius: 15px;
-    margin-bottom: 2px;
-    display: inline-block;
-    max-width: 30%;
-    color: #000;
-    font-size: 0.95em;
-    position: relative;
-
-    /* 🔥 เพิ่ม 3 บรรทัดนี้เพื่อบังคับตัดคำเวลาข้อความยาวเกินไป */
-    word-wrap: break-word;
-    word-break: break-word;
-    white-space: pre-wrap;
-}
-
-.chat-msg.self {
-    background: var(--main);
-    color: white;
-    align-self: flex-end;
-    border-bottom-right-radius: 2px;
-}
-
-.chat-msg:not(.self) {
-    border-bottom-left-radius: 2px;
-}
-
-.sender-name {
-    font-size: 0.7em;
-    color: #666;
-    margin-bottom: 2px;
-    margin-left: 5px;
-}
-
-.self+.sender-name {
-    display: none;
-}
-
-.card-head {
-    width: 100%;
-    height: 99%;
-    margin-top: 5px;
-    background-color: rgb(255, 255, 255);
-    border-top-left-radius: 25px;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
-}
-
-.card-head-inside {
-    background-image: url("assets/white.webp");
-    background-size: 100% 100%;
-    width: 100%;
-    height: 100%;
-    border-top-left-radius: 25px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-}
-
-.card-head-inside input {
-    width: 50%;
-}
-
-.card-head-inside button {
-    width: 50%;
-}
-
-.button-outline {
-    padding: 5px;
-    color: #222;
-    background-color: #ffffff;
-    border: 1px solid #e6e6e6;
-    border-radius: 40px;
-    width: 200px;
-    font-size: smaller;
-    padding: 2px;
-    cursor: pointer;
-}
-
-.button {
-    background-color: #ffffff;
-    border-radius: 50px;
-    width: 206px;
-    padding: 2px;
-    padding-left: 2.5px;
-    padding-top: 2.5px;
-    border: 1px solid #e6e6e6;
-    cursor: pointer;
-}
-
-.button:hover,
-.button-outline:hover {
-    border: 1px solid var(--main);
-}
-
-.button-outline:hover {
-    color: var(--main);
-    border: 1px solid var(--main);
-}
-
-.button:hover {
-    background-color: #222;
-    border: 1px solid #222;
-}
-
-.home-name {
-    color: #222;
-}
-
-.banner {
-    display: block;
-    background-color: var(--main);
-    border-radius: 0 100px 100px 0;
-    color: #222;
-    padding: 3px;
-    text-align: center;
-    width: 60%;
-    margin-top: 20px;
-    font-weight: lighter;
-}
-
-.logo-text {
-    display: block;
-    margin-top: 150px;
-    padding: 20px;
-    text-align: right;
-}
-
-blockquote {
-    margin: 0;
-}
-
-.modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: transparent;
-    display: none;
-    justify-content: center;
-    align-items: center;
-    z-index: 100;
-    backdrop-filter: blur(5px);
-}
-
-.modal-form {
-    background: rgb(233, 231, 226);
-    color: rgb(104, 104, 104);
-    padding: 25px;
-    border-radius: 0 0 10px 10px;
-    width: 320px;
-    font-weight: lighter;
-}
-
-.modal-lebel {
-    margin: 0;
-    padding: 20px;
-    background-color: rgb(233, 231, 226);
-    color: #222;
-    border-radius: 10px 10px 0 0;
-    margin-bottom: 0.5px;
-}
-
-.modal-content {
-    border: 1px solid #222;
-    border-radius: 10px;
-    background-color: #4e4e4e;
-}
-
-.modal-form label,
-.modal-form input,
-.modal-form select {
-    width: 100%;
-}
-
-
-.room-cards {
-    background-image: url(assets/TicketRoom.png);
-    background-size: 100% 100%;
-    /* บังคับรูปให้กางเต็มพื้นที่พอดีเป๊ะ */
-    background-repeat: no-repeat;
-
-    width: 100%;
-    max-width: 429px;
-    /* ล็อคขนาดใหญ่สุดไว้เท่ารูปจริง */
-
-    /* 🔥 คีย์สำคัญ: ล็อคสัดส่วน กว้าง / สูง ให้เท่าขนาดรูปจริง (429/135) */
-    aspect-ratio: 429 / 135;
-    height: auto;
-    /* ปล่อยให้ความสูงคำนวณอัตโนมัติ */
-
-    display: flex;
-    align-items: center;
-    /* จัดเนื้อหาให้อยู่กึ่งกลางแนวตั้ง */
-    color: #222;
-    box-sizing: border-box;
-
-    /* ปรับ Padding รวม เพื่อไม่ให้ข้อความชิดขอบรูปตั๋วเกินไป */
-    padding: 0 10px;
-}
-
-strong {
-    font-size: x-large;
-}
-
-.left-ticket {
-    width: 75%;
-    /* กะระยะให้พอดีกับฝั่งซ้ายของตั๋ว (ปรับ % ได้ถ้ารูปจริงรอยพับไม่ตรง) */
-    padding-left: 15px;
-    flex-direction: column;
-    justify-content: center;
-    gap: 10%;
-}
-
-/* --- 3. ฝั่งขวา (ปุ่ม Join) --- */
-.right-ticket {
-    width: 20%;
-    /* กะระยะสำหรับหางตั๋วฝั่งขวา */
-    height: 100%;
-    display: flex;
-    justify-content: right;
-    align-items: center;
-    padding-right: 10px;
-}
-
-/* --- 4. ปุ่ม Join --- */
-.button-join,
-.button-join-red {
-    width: 45%;
-    height: 65%;
-    /* ให้ปุ่มมีความสูงพอดีๆ กับช่องหางตั๋ว */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-weight: bold;
-    font-size: 0.9em;
-    padding: 0;
-    /* ล้าง padding เดิมทิ้งไป */
-    cursor: pointer;
-    margin: 5%;
-    color: #222;
-    border-radius: 0;
-}
-
-.button-join-red {
-    background-color: #bababa;
-    cursor: not-allowed;
-}
-
-h5 {
-    margin: 0;
-    padding: 10px;
-    padding-bottom: 5px;
-}
-
-h6 {
-    margin: 0;
-    padding-left: 10px;
-    padding-bottom: 10px;
-}
-
-
-
-/* หน้าจอขนาดกลาง (Tablet) */
-@media screen and (max-width: 1024px) {
-    .room-list {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-/* --- ระบบเลือกเครื่องดนตรีแบบรูปภาพแถวเดียว --- */
+/* ---------------------------------------------------
+   9. INSTRUMENT SELECTORS (UI เลือกเครื่องดนตรีด้านบน)
+--------------------------------------------------- */
 .instrument-selector {
     display: flex;
     justify-content: space-between;
@@ -793,11 +578,8 @@ h6 {
     justify-content: center;
 }
 
-.inst-option:hover {
-    background: #555;
-}
+.inst-option:hover { background: #555; }
 
-/* สถานะเมื่อถูกเลือก */
 .inst-option.active {
     border-color: var(--main);
     background: #333;
@@ -805,30 +587,10 @@ h6 {
     box-shadow: 0 0 8px rgba(188, 164, 122, 0.4);
 }
 
-.inst-icon {
-    font-size: 1.8em;
-    margin-bottom: 5px;
-}
+.inst-icon { font-size: 1.8em; margin-bottom: 5px; }
+.inst-img { width: 40px; height: 40px; object-fit: contain; margin-bottom: 5px; }
 
-/* ควบคุมขนาดรูปภาพเครื่องดนตรี */
-.inst-img {
-    width: 40px;
-    /* ปรับขนาดความกว้างของรูปได้ตามต้องการ */
-    height: 40px;
-    /* ปรับขนาดความสูงของรูป */
-    object-fit: contain;
-    /* ทำให้รูปไม่เบี้ยว */
-    margin-bottom: 5px;
-}
-
-/* ปรับแต่งระยะห่างของตัวเลือกเครื่องดนตรีใน Top bar */
-.room-top-selector {
-    margin-top: 0;
-    width: auto;
-    gap: 5px;
-}
-
-/* ลดขนาดกล่องและตัวหนังสือใน Top bar */
+.room-top-selector { margin-top: 0; width: auto; gap: 5px; }
 .room-top-selector .inst-option {
     padding: 5px 2px;
     font-size: 0.65em;
@@ -836,26 +598,69 @@ h6 {
     flex: none;
     text-align: center;
 }
+.inst-img-small { width: 20px; height: 20px; object-fit: contain; margin-bottom: 2px; }
 
-/* ลดขนาดรูปภาพเพื่อให้ใส่ใน Top bar ได้พอดี */
-.inst-img-small {
-    width: 20px;
-    height: 20px;
-    object-fit: contain;
-    margin-bottom: 2px;
+/* ---------------------------------------------------
+   10. PLAY AREA (พื้นที่เล่นเครื่องดนตรีทั้งหมด)
+--------------------------------------------------- */
+.instrument-area {
+    flex: 0 0 45%; 
+    height: 45%;
+    background: #111;
+    border-top: 2px solid var(--main);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    user-select: none;
+    overflow-x: auto;
+    overflow-y: hidden;
 }
-/* ==========================================
-   DRUM KIT PRO — Layout ตามภาพกลองชุดจริง
-   ==========================================
 
-   ภาพ top-view จากซ้ายไปขวา:
-   ซ้าย:        ฉาบ 3 ชั้น (crash บน / openhihat กลาง / closehihat ล่าง) ซ้อนกันแนวตั้ง
-   กลางบน:      tom1 (ซ้าย) + tom2 (ขวา) เรียงกัน
-   ขวาบน:       ride ฉาบ (อยู่ขวาบน)
-   กลางล่าง:    kick1 (ซ้าย) + kick2 (กลาง) + floor (ขวา) เรียงชิดกัน
-   ขวาล่าง:     snare (ขวาสุด)
-*/
+/* 10.1 Piano */
+.piano {
+    display: flex;
+    height: 100%;
+    position: relative;
+    width: 70%;
+    justify-content: center;
+}
 
+.key {
+    border: 1px solid #ccc;
+    cursor: pointer;
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
+    transition: background 0.1s;
+    position: relative;
+}
+
+.key::after {
+    content: attr(data-key);
+    position: absolute;
+    bottom: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: #555;
+}
+
+.white { background: white; flex: 1; height: 80%; z-index: 1; }
+.white:active, .white.hit { background: #ddd; transform: scale(0.98); transform-origin: top; }
+
+.black {
+    background: #111;
+    width: 2.5%;
+    height: 50%;
+    margin-left: -1.25%;
+    margin-right: -1.25%;
+    z-index: 2;
+    position: relative;
+    border-bottom: 4px solid #000;
+}
+.black:active, .black.hit { background: #333; border-bottom: 2px solid #000; }
+
+/* 10.2 Drum Kit Pro */
 .drum-kit-pro {
     position: relative;
     width: 780px;
@@ -863,7 +668,6 @@ h6 {
     margin: 0 auto;
 }
 
-/* ตั้งค่าพื้นฐานปุ่มกลอง */
 .drum-item {
     position: absolute;
     display: flex;
@@ -878,133 +682,23 @@ h6 {
     overflow: visible;
 }
 
-.drum-item img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    pointer-events: none;
-    display: block;
-}
+.drum-item img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; display: block; }
+.drum-label { position: absolute; bottom: -16px; width: 100%; font-size: 9px; color: #777; white-space: nowrap; text-align: center; letter-spacing: 0.5px; }
+.drum-item.hit img { filter: brightness(1.7) drop-shadow(0 0 10px var(--main)); transform: scale(0.94); }
 
-.drum-label {
-    position: absolute;
-    bottom: -16px;
-    width: 100%;
-    font-size: 9px;
-    color: #777;
-    white-space: nowrap;
-    text-align: center;
-    letter-spacing: 0.5px;
-}
+/* พิกัดกลองชุด */
+#drum-crash { width: 110px; height: 110px; top: 15px; left: 170px; z-index: 12; }
+#drum-openhihat { width: 100px; height: 100px; top: 170px; left: 140px; z-index: 11; }
+#drum-closehihat { width: 100px; height: 100px; top: 90px; left: 135px; z-index: 11; }
+#drum-tom1 { width: 110px; height: 110px; top: 40px; left: 260px; z-index: 10; }
+#drum-tom2 { width: 110px; height: 110px; top: 40px; left: 390px; z-index: 10; }
+#drum-ride { width: 120px; height: 120px; top: 5px; right: 180px; z-index: 12; }
+#drum-kick1 { width: 145px; height: 145px; bottom: 20px; left: 230px; z-index: 3; }
+#drum-kick2 { width: 145px; height: 145px; bottom: 20px; left: 380px; z-index: 3; }
+#drum-floor { width: 120px; height: 120px; bottom: 80px; left: 480px; z-index: 4; }
+#drum-snare { width: 125px; height: 125px; bottom: 100px; right: 340px; z-index: 6; }
 
-/* Visual feedback */
-.drum-item.hit img {
-    filter: brightness(1.7) drop-shadow(0 0 10px var(--main));
-    transform: scale(0.94);
-}
-
-/* ============================================
-   ตำแหน่งชิ้นส่วนทุกชิ้น — พิกัด absolute
-   อ้างอิงจากภาพต้นฉบับ (top-view)
-   ============================================ */
-
-/*
-  ---- ซ้ายสุด: กลุ่มฉาบซ้อนกัน 3 ชั้น ----
-  crash อยู่บนสุด, openhihat กลาง, closehihat ล่าง
-  ทั้ง 3 ทรงรีแบน ซ้อนกันแนวตั้ง
-*/
-#drum-crash {
-    width: 110px;
-    height: 110px;
-    top: 15px;
-    left: 170px;
-    z-index: 12;
-}
-#drum-openhihat {
-    width: 100px;
-    height: 100px;
-    top: 170px;
-    left: 140px;
-    z-index: 11;
-}
-#drum-closehihat {
-    width: 100px;
-    height: 100px;
-    top: 90px;
-    left: 135px;
-    z-index: 11;
-}
-
-/*
-  ---- กลางบน: tom1 และ tom2 ----
-  อยู่แถวบน กึ่งกลาง ห่างจากซ้าย ~160px
-*/
-#drum-tom1 {
-    width: 110px;
-    height: 110px;
-    top: 40px;
-    left: 260px;
-    z-index: 10;
-}
-#drum-tom2 {
-    width: 110px;
-    height: 110px;
-    top: 40px;
-    left: 390px;
-    z-index: 10;
-}
-
-/*
-  ---- ขวาบน: ride ฉาบ ----
-  ทรงรีแบน อยู่มุมขวาบน
-*/
-#drum-ride {
-    width: 120px;
-    height: 120px;
-    top: 5px;
-    right: 180px;
-    z-index: 12;
-}
-
-/*
-  ---- แถวล่าง: kick1 + kick2 + floor เรียงชิดกัน ----
-  kick ใหญ่ 2 ลูกอยู่กลาง, floor อยู่ขวาของ kick
-*/
-#drum-kick1 {
-    width: 145px;
-    height: 145px;
-    bottom: 20px;
-    left: 230px;
-    z-index: 3;
-}
-#drum-kick2 {
-    width: 145px;
-    height: 145px;
-    bottom: 20px;
-    left: 380px;
-    z-index: 3
-}
-#drum-floor {
-    width: 120px;
-    height: 120px;
-    bottom: 80px;
-    left: 480px;
-    z-index: 4;
-}
-
-/*
-  ---- ขวาสุด: snare ----
-  วงกลมขนาดกลาง อยู่ขวาล่างสุด
-*/
-#drum-snare {
-    width: 125px;
-    height: 125px;
-    bottom: 100px;
-    right: 340px;
-    z-index: 6;
-}
-
-/* --- สไตล์สำหรับ Guitar และ Bass --- */
+/* 10.3 Guitar & Bass (บอร์ดสายเครื่องสาย) */
 .instrument-board {
     width: 90%;
     height: 85%;
@@ -1017,140 +711,92 @@ h6 {
     box-shadow: inset 0 0 20px #000;
 }
 
-.string-row {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    width: 100%;
+.guitar-board {
+    width: 90%; height: 80%; display: flex; flex-direction: column; justify-content: space-around;
+    background: #222; border-radius: 10px; padding: 10px; position: relative; touch-action: none;
 }
 
+.string-row { display: flex; align-items: center; gap: 15px; width: 100%; }
 .string-label {
-    min-width: 35px;
-    height: 35px;
-    background: #2a2a2a;
-    color: var(--main);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    border-radius: 6px;
-    font-weight: bold;
-    border: 1px solid #3d3d3d;
-    box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
-    font-size: 1.1em;
+    min-width: 35px; height: 35px; background: #2a2a2a; color: var(--main);
+    display: flex; justify-content: center; align-items: center; border-radius: 6px;
+    font-weight: bold; border: 1px solid #3d3d3d; box-shadow: 2px 2px 5px rgba(0,0,0,0.5); font-size: 1.1em;
 }
 
-.string-line-container {
-    flex: 1;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-}
-
+.string-line-container { flex: 1; height: 30px; display: flex; align-items: center; cursor: pointer; }
 .string-line {
-    width: 100%;
-    height: 4px; /* ความหนาสาย */
-    background: #555;
-    border-radius: 2px;
-    transition: 0.1s;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.8);
+    width: 100%; height: 4px; background: #555; border-radius: 2px;
+    transition: 0.1s; box-shadow: 0 1px 2px rgba(0,0,0,0.8);
 }
 
-/* ปรับความหนาสาย Bass ให้ดูใหญ่กว่า Guitar */
-.bass-board .string-line {
-    height: 6px;
-}
+.bass-board .string-line { height: 6px; }
 
-/* --- Animation สำหรับการสั่นของสาย --- */
-@keyframes stringVibrate {
-    0% { transform: translateX(0); }
-    20% { transform: translateX(-5px) scaleY(1.5); }  /* สั่นไปซ้ายนิดหน่อย */
-    40% { transform: translateX(5%) scaleY(1.1); }   /* สั่นไปขวา */
-    60% { transform: translateX(-3px) scaleY(1.4); }  /* สั่นน้อยลง */
-    80% { transform: translateX(3px) scaleY(1.2); }
-    100% { transform: translateX(0) scaleY(1.0); }    /* กลับมานิ่ง */
-}
-
-/* เอฟเฟกต์ตอนกดสาย (อัปเดตใหม่ เพิ่มสั่น) */
 .string-line.hit {
     background: var(--main);
     box-shadow: 0 0 15px var(--main), 0 0 25px var(--main);
-    
-    /* 🚨 เพิ่มบรรทัดนี้: เรียกใช้ animation stringVibrate ความเร็ว 0.15s */
     animation: stringVibrate 0.15s linear none; 
-    
-    /* เอา transform คงที่อันเก่าออก เพื่อให้ใช้จาก animation แทน */
-    /* transform: scaleY(1.8); */ 
 }
 
+/* สายกีตาร์แบบดั้งเดิม (เผื่อสำรอง) */
+.string { height: 3px; background: #888; position: relative; cursor: pointer; display: flex; align-items: center; transition: 0.1s; }
+.string:active, .string.hit { transform: scaleY(1.5); box-shadow: 0 0 5px var(--main); }
 
-/* =========================================
-   Singer UI (ช่องใส่เนื้อเพลง)
-========================================= */
-
-/* ปรับแต่งบอร์ดของนักร้องให้แสดงผลจากบนลงล่าง */
+/* 10.4 Singer (ระบบพิมพ์เนื้อเพลง) */
 .singer-board {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start; /* ให้ข้อความเริ่มจากด้านบน */
-    padding: 20px;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: flex-start; padding: 20px;
 }
 
-/* หัวข้อ Lyrics */
 .singer-title {
-    color: var(--main);
-    margin-top: 0;
-    margin-bottom: 15px;
-    font-size: 1.2em;
-    text-align: center;
-    text-transform: uppercase;
-    letter-spacing: 2px;
+    color: var(--main); margin-top: 0; margin-bottom: 15px; font-size: 1.2em;
+    text-align: center; text-transform: uppercase; letter-spacing: 2px;
 }
 
-/* กล่องพิมพ์เนื้อเพลง */
 .singer-lyrics-input {
-    width: 100%;
-    flex: 1; /* ขยายให้เต็มพื้นที่ที่เหลือ */
-    background: #222;
-    color: #eee;
-    border: 2px solid #444;
-    border-radius: 8px;
-    padding: 15px;
-    font-size: 1.1em;
-    line-height: 1.6;
-    resize: none; /* ปิดการยืดหดกล่องด้วยเมาส์ ป้องกันเลย์เอาต์พัง */
-    outline: none;
-    box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.8);
-    font-family: inherit; /* ใช้ฟอนต์เดียวกับระบบ */
-    transition: all 0.2s;
+    width: 100%; flex: 1; background: #222; color: #eee;
+    border: 2px solid #444; border-radius: 8px; padding: 15px;
+    font-size: 1.1em; line-height: 1.6; resize: none; outline: none;
+    box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.8); font-family: inherit; transition: all 0.2s;
 }
 
-/* เอฟเฟกต์ตอนคลิกพิมพ์ */
 .singer-lyrics-input:focus {
     border-color: var(--main);
     box-shadow: 0 0 15px rgba(188, 164, 122, 0.3), inset 0 0 15px rgba(0, 0, 0, 0.8);
 }
+.singer-lyrics-input::placeholder { color: #666; font-style: italic; }
 
-/* ปรับสี Placeholder (ข้อความจางๆ) */
-.singer-lyrics-input::placeholder {
-    color: #666;
-    font-style: italic;
+/* ---------------------------------------------------
+   11. TOAST NOTIFICATIONS (ระบบป๊อปอัพแจ้งเตือนมุมบน)
+--------------------------------------------------- */
+#notification-area {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    z-index: 9999; display: flex; flex-direction: column; gap: 10px;
 }
 
-/* จัดให้อยู่กึ่งกลางปุ่มพอดี */
-.circle-btn {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    /* ... (โค้ดเดิมอื่นๆ ของ .circle-btn ปล่อยไว้เหมือนเดิมครับ) ... */
+.toast {
+    display: flex; align-items: center; gap: 12px; min-width: 280px; padding: 12px 20px;
+    background: rgba(34, 34, 34, 0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    color: var(--text); border-radius: 8px; border: 1px solid var(--main);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4); transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    animation: slideIn 0.4s ease forwards;
 }
 
-/* ควบคุมขนาดและสีของ SVG ข้างในปุ่ม */
-.circle-btn svg {
-    width: 60%;  /* ปรับให้ขนาด Icon พอดีกับวงกลม ไม่ล้นขอบ */
-    height: 60%;
-    /* currentColor จะดึงสีมาจากสีตัวอักษรของปุ่มอัตโนมัติ 
-       (ถ้าปุ่มเปลี่ยนสี Icon จะเปลี่ยนตาม) */
-    transition: all 0.2s; 
+.toast.info { border-left: 5px solid var(--main); }
+.toast.success { border-left: 5px solid var(--success); }
+.toast.error { border-left: 5px solid var(--danger); }
+
+/* ---------------------------------------------------
+   12. RESPONSIVE DESIGN (ปรับแต่งหน้าจอขนาดเล็ก)
+--------------------------------------------------- */
+@media screen and (max-width: 1024px) {
+    /* บน Tablet ให้รายชื่อห้องล็อบบี้แสดงแค่ 2 คอลัมน์ */
+    .room-list {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+@media screen and (max-width: 480px) {
+    /* บนมือถือ ให้รายชื่อสมาชิกในห้องกลับมาแสดงแค่ 1 คอลัมน์เพื่อไม่ให้เบียดเกินไป */
+    #memberList {
+        grid-template-columns: 1fr; 
+    }
 }

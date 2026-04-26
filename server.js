@@ -3,12 +3,20 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
+// ==========================================================================
+// 1. HTTP SERVER (เซิร์ฟเวอร์สำหรับโหลดหน้าเว็บและไฟล์ต่างๆ)
+// ทำหน้าที่ส่งไฟล์ HTML, CSS, JS, รูปภาพ และไฟล์เสียง เมื่อเบราว์เซอร์ร้องขอ
+// ==========================================================================
 const server = http.createServer((req, res) => {
+    // จัดการ path ให้ปลอดภัย ป้องกันการแฮกเข้าดูไฟล์ระบบ (Directory Traversal)
     const safePath = path.normalize(req.url).replace(/^(\.\.[\/\\])+/, '');
+
+    // ถ้าเข้ามาที่หน้าแรก '/' ให้เปิดไฟล์ 'index.html'
     let filePath = path.join(__dirname, safePath === '/' || safePath === '\\' ? 'index.html' : safePath);
     const extname = path.extname(filePath).toLowerCase();
-    let contentType = 'text/html';
 
+    // กำหนดประเภทของไฟล์ (MIME Type) ให้เบราว์เซอร์อ่านได้ถูกต้อง
+    let contentType = 'text/html';
     switch (extname) {
         case '.js': contentType = 'text/javascript'; break;
         case '.css': contentType = 'text/css'; break;
@@ -22,131 +30,237 @@ const server = http.createServer((req, res) => {
         case '.woff2': contentType = 'font/woff2'; break;
     }
 
+    // อ่านไฟล์จากฮาร์ดดิสก์แล้วส่งกลับไปให้เบราว์เซอร์
     fs.readFile(filePath, (err, content) => {
         if (err) {
+            // ถ้าไม่เจอไฟล์ให้ส่ง Error 404
             res.writeHead(err.code == 'ENOENT' ? 404 : 500);
             res.end(err.code == 'ENOENT' ? '404 Not Found' : 'Server Error');
         } else {
+            // ถ้าเจอไฟล์ ส่งข้อมูลพร้อมรหัส 200 (OK)
             res.writeHead(200, { 'Content-Type': contentType });
             res.end(content, 'utf-8');
         }
     });
 });
 
-let rooms = {};
-let clients = [];
+// ==========================================================================
+// 2. GLOBAL STATES (ตัวแปรเก็บข้อมูลสถานะของระบบ)
+// ==========================================================================
+let rooms = {};   // เก็บข้อมูลห้องทั้งหมด (รายชื่อสมาชิก, รหัสผ่าน ฯลฯ)
+let clients = []; // เก็บข้อมูลคนที่กำลังเชื่อมต่ออยู่ทั้งหมด
 
+// ==========================================================================
+// 3. WEBSOCKET SERVER (ระบบเชื่อมต่อแบบ Real-time)
+// ดักจับเหตุการณ์ 'upgrade' (เมื่อ Client ขอเปลี่ยนจาก HTTP ธรรมดาเป็น WebSocket)
+// ==========================================================================
 server.on('upgrade', (req, socket, head) => {
+    // 3.1 การทำ Handshake (ตอบรับการเชื่อมต่อ WebSocket ตามมาตรฐาน)
     const key = req.headers['sec-websocket-key'];
     const digest = crypto.createHash('sha1').update(key + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64');
     socket.write('HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n' + `Sec-WebSocket-Accept: ${digest}\r\n\r\n`);
 
-    const client = { socket, id: crypto.randomUUID(), room: null, name: null, instrument: null, peerId: null };
+    // 3.2 สร้างตัวตน (Profile) ให้ผู้ใช้ที่เพิ่งเชื่อมต่อเข้ามาใหม่
+    const client = {
+        socket,
+        id: crypto.randomUUID(), // สุ่ม ID ให้ผู้เล่น
+        room: null,
+        name: null,
+        instrument: null,
+        peerId: null // สำหรับระบบเสียง WebRTC
+    };
     clients.push(client);
 
+    // 3.3 เมื่อได้รับข้อมูลจาก Client
     socket.on('data', (buffer) => {
-        const parsed = parseFrame(buffer);
+        const parsed = parseFrame(buffer); // ถอดรหัสข้อมูล
         if (!parsed) return;
         const opcode = buffer[0] & 0x0F;
-        if (opcode === 1) { 
-            try { handleMessage(client, JSON.parse(parsed.toString())); } catch (e) {}
+        if (opcode === 1) { // ถ้าเป็นข้อความประเภท Text (Opcode 1)
+            try {
+                handleMessage(client, JSON.parse(parsed.toString()));
+            } catch (e) { }
         }
     });
+
+    // 3.4 เมื่อ Client ปิดหน้าเว็บ หรือเน็ตหลุด
     socket.on('close', () => handleDisconnect(client));
     socket.on('error', () => handleDisconnect(client));
 });
 
+// ==========================================================================
+// 4. MESSAGE HANDLER (ระบบจัดการคำสั่งต่างๆ จาก Client)
+// ==========================================================================
 function handleMessage(c, m) {
     switch (m.type) {
-        case 'LOGIN':
-            c.name = m.payload.name; sendRoomList(c); break;
-        case 'CREATE_ROOM':
+        case 'LOGIN': // เมื่อกรอกชื่อเข้าสู่ระบบ
+            c.name = m.payload.name;
+            sendRoomList(c); // ส่งรายชื่อห้องไปให้โชว์ที่ Lobby
+            break;
+
+        case 'CREATE_ROOM': // สร้างห้องใหม่
             const roomId = crypto.randomUUID();
-            rooms[roomId] = { id: roomId, name: m.payload.roomName, password: m.payload.password, capacity: m.payload.capacity, users: [] };
-            joinRoom(c, roomId, null, m.payload.instrument, m.payload.peerId); break;
-        case 'JOIN_ROOM':
-            joinRoom(c, m.payload.roomId, m.payload.password, m.payload.instrument, m.payload.peerId); break;
-        case 'NOTE_PLAY':
-            broadcastToRoom(c.room, { type: 'NOTE_PLAY', payload: { ...m.payload, senderId: c.id } }, c.id); break;
-        case 'CHAT':
-            broadcastToRoom(c.room, { type: 'CHAT', payload: { text: m.payload, senderId: c.id, senderName: c.name } }); break;
-        case 'LEAVE_ROOM':
-            leaveRoom(c); break;
-        case 'CHANGE_INSTRUMENT':
+            rooms[roomId] = {
+                id: roomId,
+                name: m.payload.roomName,
+                password: m.payload.password,
+                capacity: m.payload.capacity,
+                users: []
+            };
+            joinRoom(c, roomId, null, m.payload.instrument, m.payload.peerId);
+            break;
+
+        case 'JOIN_ROOM': // กดเข้าร่วมห้อง
+            joinRoom(c, m.payload.roomId, m.payload.password, m.payload.instrument, m.payload.peerId);
+            break;
+
+        case 'NOTE_PLAY': // มีคนกดเล่นเครื่องดนตรี ให้กระจายเสียงไปบอกคนอื่นในห้อง
+            broadcastToRoom(c.room, { type: 'NOTE_PLAY', payload: { ...m.payload, senderId: c.id } }, c.id);
+            break;
+
+        case 'CHAT': // มีคนพิมพ์แชท
+            broadcastToRoom(c.room, { type: 'CHAT', payload: { text: m.payload, senderId: c.id, senderName: c.name } });
+            break;
+
+        case 'LEAVE_ROOM': // กดย้ายกลับไปหน้า Lobby
+            leaveRoom(c);
+            break;
+
+        case 'CHANGE_INSTRUMENT': // เปลี่ยนเครื่องดนตรีระหว่างอยู่ในห้อง
             if (!c.room) return;
-            c.instrument = m.payload; 
+            c.instrument = m.payload;
             const r = rooms[c.room];
             if (r) {
                 const user = r.users.find(u => u.id === c.id);
-                if (user) user.instrument = m.payload; 
+                if (user) user.instrument = m.payload; // อัปเดตข้อมูลเครื่องดนตรีใหม่
                 c.socket.write(createFrame({ type: 'INSTRUMENT_CHANGED', payload: m.payload }));
-                broadcastToRoom(c.room, { type: 'UPDATE_MEMBERS', payload: r.users });
+                broadcastToRoom(c.room, { type: 'UPDATE_MEMBERS', payload: r.users }); // อัปเดตรายชื่อให้ทุกคนเห็น
             }
             break;
     }
 }
 
+// ==========================================================================
+// 5. ROOM MANAGEMENT (ระบบบริหารจัดการห้อง)
+// ==========================================================================
+
+// นำผู้ใช้เข้าห้อง และตรวจสอบเงื่อนไขต่างๆ
 function joinRoom(c, roomId, p, i, peerId) {
     const r = rooms[roomId];
-    if (!r) return sendErr(c, 'No Room');
-    if (r.password && r.password !== p && r.users.length > 0) return sendErr(c, 'Wrong Pass');
-    if (r.users.length >= r.capacity) return sendErr(c, 'Full');
-    if (c.room) leaveRoom(c);
+    if (!r) return sendErr(c, 'No Room'); // หาห้องไม่เจอ
+    if (r.password && r.password !== p && r.users.length > 0) return sendErr(c, 'Wrong Pass'); // รหัสผิด
+    if (r.users.length >= r.capacity) return sendErr(c, 'Full'); // ห้องเต็ม
 
+    if (c.room) leaveRoom(c); // ถ้าเคยอยู่ห้องอื่นให้เตะออกมาก่อน
+
+    // อัปเดตข้อมูลให้ Client
     c.room = roomId;
     c.instrument = i;
     c.peerId = peerId;
     r.users.push({ id: c.id, name: c.name, instrument: i, peerId: peerId });
 
+    // แจ้ง Client ว่าเข้าห้องสำเร็จ
     c.socket.write(createFrame({ type: 'JOIN_SUCCESS', payload: { roomId: roomId, roomName: r.name, instrument: i, myId: c.id } }));
+
+    // แจ้งอัปเดตสมาชิกให้คนในห้อง และแจ้งอัปเดตห้องให้คนใน Lobby
     broadcastToRoom(roomId, { type: 'UPDATE_MEMBERS', payload: r.users });
     broadcastGlobal({ type: 'UPDATE_LOBBY', payload: getRoomList() });
 }
 
+// นำผู้ใช้ออกจากห้อง
 function leaveRoom(c) {
     if (!c.room) return;
     const r = rooms[c.room];
     if (r) {
-        r.users = r.users.filter(u => u.id !== c.id);
-        if (r.users.length === 0) delete rooms[c.room];
+        r.users = r.users.filter(u => u.id !== c.id); // ลบชื่อออกจากห้อง
+        if (r.users.length === 0) delete rooms[c.room]; // ถ้าห้องว่างให้ลบห้องทิ้ง
         else broadcastToRoom(c.room, { type: 'UPDATE_MEMBERS', payload: r.users });
     }
     c.room = null;
-    broadcastGlobal({ type: 'UPDATE_LOBBY', payload: getRoomList() });
+    broadcastGlobal({ type: 'UPDATE_LOBBY', payload: getRoomList() }); // อัปเดต Lobby ใหม่
 }
 
-function handleDisconnect(c) { leaveRoom(c); clients = clients.filter(x => x.id !== c.id); }
+// เมื่อผู้ใช้ปิดหน้าเว็บ
+function handleDisconnect(c) {
+    leaveRoom(c);
+    clients = clients.filter(x => x.id !== c.id); // ลบออกจากระบบ
+}
 
+// ดึงข้อมูลรายชื่อห้องทั้งหมดเพื่อส่งไปแสดงที่หน้า Lobby
 function getRoomList() {
-    return Object.values(rooms).map(r => ({ id: r.id, name: r.name, count: r.users.length, max: r.capacity, locked: !!r.password }));
+    return Object.values(rooms).map(r => ({
+        id: r.id,
+        name: r.name,
+        count: r.users.length,
+        max: r.capacity,
+        locked: !!r.password // เช็คว่าห้องมีรหัสผ่านไหม
+    }));
 }
 
+// ==========================================================================
+// 6. WEBSOCKET PROTOCOL 
+// ==========================================================================
+
+// ถอดรหัสข้อมูล (Unmasking) ที่ส่งมาจาก Client
 function parseFrame(buffer) {
     if (buffer.length < 2) return null;
     const len = buffer[1] & 127;
     let maskStart = 2;
     if (len === 126) maskStart = 4; else if (len === 127) return null;
+
     const mask = buffer.slice(maskStart, maskStart + 4);
     const payloadLength = len === 126 ? buffer.readUInt16BE(2) : len;
     const payload = buffer.slice(maskStart + 4, maskStart + 4 + payloadLength);
+
     const unmasked = Buffer.alloc(payload.length);
     for (let i = 0; i < payload.length; i++) unmasked[i] = payload[i] ^ mask[i % 4];
     return unmasked;
 }
 
+// เข้ารหัสข้อมูล (Framing) เพื่อเตรียมส่งกลับไปหา Client
 function createFrame(data) {
     const payload = Buffer.from(JSON.stringify(data));
     const len = payload.length;
-    const frame = [0x81];
+    const frame = [0x81]; // 0x81 หมายถึงข้อความแบบ Text
+
     if (len <= 125) frame.push(len);
     else { frame.push(126); frame.push((len >> 8) & 255); frame.push(len & 255); }
+
     return Buffer.concat([Buffer.from(frame), payload]);
 }
 
-function broadcastToRoom(r, d, ex = null) { clients.forEach(c => { if (c.room === r && c.id !== ex && c.socket.writable) c.socket.write(createFrame(d)); }); }
-function broadcastGlobal(d) { clients.forEach(c => { if (c.socket.writable) c.socket.write(createFrame(d)); }); }
-function sendRoomList(c) { if (c.socket.writable) c.socket.write(createFrame({ type: 'UPDATE_LOBBY', payload: getRoomList() })); }
-function sendErr(c, m) { if (c.socket.writable) c.socket.write(createFrame({ type: 'ERROR', payload: m })); }
+// ==========================================================================
+// 7. BROADCAST UTILITIES (ตัวช่วยในการส่งข้อความ)
+// ==========================================================================
 
+// ส่งข้อความหาทุกคนในห้อง (ยกเว้นไอดีที่กำหนดไว้ใน 'ex')
+function broadcastToRoom(r, d, ex = null) {
+    clients.forEach(c => {
+        if (c.room === r && c.id !== ex && c.socket.writable) c.socket.write(createFrame(d));
+    });
+}
+
+// ส่งข้อความหาทุกคนที่ออนไลน์อยู่
+function broadcastGlobal(d) {
+    clients.forEach(c => {
+        if (c.socket.writable) c.socket.write(createFrame(d));
+    });
+}
+
+// ส่งอัปเดตรายชื่อห้องให้คนใดคนหนึ่ง
+function sendRoomList(c) {
+    if (c.socket.writable) c.socket.write(createFrame({ type: 'UPDATE_LOBBY', payload: getRoomList() }));
+}
+
+// ส่งข้อความแจ้งเตือน Error
+function sendErr(c, m) {
+    if (c.socket.writable) c.socket.write(createFrame({ type: 'ERROR', payload: m }));
+}
+
+// ==========================================================================
+// 8. START SERVER
+// ==========================================================================
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => { console.log(`ThamMozart Server running on port ${PORT}`); });
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`ThamMozart Server running on port ${PORT}`);
+});
