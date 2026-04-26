@@ -252,7 +252,15 @@ function handleServerMessage(msg) {
         case 'NOTE_PLAY':          triggerVisual(msg.payload);
                                    playRemoteNote(msg.payload);         break;
         case 'INSTRUMENT_CHANGED': renderInstrument(msg.payload);       break;
-        case 'ERROR':              notify(msg.payload, 'error');        break;
+        case 'ERROR':              
+            notify(msg.payload, 'error'); 
+            if (msg.payload === 'No Room' || msg.payload === 'Wrong Pass' || msg.payload === 'Full') {
+                selectedRoom = '';   
+                currentInst = '';   
+                switchScreen('lobby'); 
+                stopMic();          
+            }
+            break;
     }
 }
 
