@@ -926,19 +926,23 @@ function enterRoom(data) {
 
 function cleanupConnection() {
     stopMic();
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        send('LEAVE_ROOM', {});
-        ws.close(); 
-    }
+
+    // ปิด WebSocket 
+    try {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'LEAVE_ROOM', payload: {} }));
+            ws.close(); 
+        }
+    } catch(e) {}
     
-    if (peer && !peer.destroyed) {
-        peer.destroy();
-    }
+    //ตัดสายโทรศัพท์ WebRTC
+    try {
+        if (peer && !peer.destroyed) {
+            peer.destroy();
+        }
+    } catch(e) {}
 }
 
-// สำหรับเบราว์เซอร์บนคอมพิวเตอร์ (PC / Mac)
-window.addEventListener('beforeunload', cleanupConnection);
-
-// สำหรับเบราว์เซอร์บนมือถือ (iOS Safari / Android Chrome)
-window.addEventListener('pagehide', cleanupConnection);
-window.addEventListener('unload', cleanupConnection);
+window.addEventListener('pagehide', cleanupConnection, false);
+window.addEventListener('unload', cleanupConnection, false);
+window.addEventListener('beforeunload', cleanupConnection, false);
