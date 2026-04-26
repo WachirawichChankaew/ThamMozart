@@ -174,16 +174,28 @@ function connect() {
 
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const currentWs = new WebSocket(`${protocol}//${window.location.host}`);
-    ws = currentWs; // ยึดสายใหม่นี้เป็นหลัก
+    ws = currentWs; 
 
     currentWs.onopen = () => {
         if (ws !== currentWs) return; 
 
         if (pingInterval) clearInterval(pingInterval);
         notify('Connected', 'success');
+
         send('LOGIN', { name: myName, peerId: myPeerId, sessionId: mySessionId });
         
-        switchScreen('lobby'); 
+        if (selectedRoom && currentInst) {
+            setTimeout(() => {
+                send('JOIN_ROOM', {
+                    roomId: selectedRoom,
+                    password: '', 
+                    instrument: currentInst,
+                    peerId: myPeerId
+                });
+            }, 500);
+        } else {
+            switchScreen('lobby'); 
+        }
         
         pingInterval = setInterval(() => {
             if (ws === currentWs && ws.readyState === WebSocket.OPEN) {
@@ -208,15 +220,16 @@ function connect() {
         activeCalls = {};
         Object.values(remoteAudios).forEach(a => { a.srcObject = null; a.remove(); });
         remoteAudios = {};
-        currentInst = '';
         const deck = document.getElementById('instrumentDeck');
         if (deck) deck.innerHTML = '';
 
         reconnectTimer = setTimeout(connect, 3000);
-
-        // ปลุกไมค์
-        if (peer && peer.disconnected && !peer.destroyed) {
-            setTimeout(() => { if (peer.disconnected) peer.reconnect(); }, 3000);
+        if (peer && peer.disconnected && !peer.destroyed && !isPeerReconnecting) {
+            isPeerReconnecting = true;
+            setTimeout(() => { 
+                if (peer.disconnected) peer.reconnect(); 
+                isPeerReconnecting = false;
+            }, 3000);
         }
     };
 }

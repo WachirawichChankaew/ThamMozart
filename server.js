@@ -82,14 +82,12 @@ function handleMessage(c, m) {
             c.name = m.payload.name; 
             c.peerId = m.payload.peerId; 
             c.sessionId = m.payload.sessionId; 
-            
             clients.forEach(oldClient => {
                 if (oldClient.id !== c.id && oldClient.sessionId === c.sessionId) {
                     handleDisconnect(oldClient); 
                     oldClient.socket.destroy();  
                 }
             });
-
             sendRoomList(c); 
             break;
         case 'CREATE_ROOM':// สร้างห้องใหม่
