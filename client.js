@@ -475,34 +475,19 @@ function renderChat(d) {
 // ============================================================
 
 async function initAudio() {
-    if (toneInstruments.piano) return; // โหลดแล้ว ไม่ต้องทำซ้ำ
+    if (toneInstruments.piano) return; // 
 
-    // ดึง AudioContext จาก Tone.js (ใช้ร่วมกันเพื่อ sync timing)
+    // ดึง AudioContext จาก Tone.js
     sharedCtx = Tone.getContext().rawContext;
 
-    // --- Instrument output: ส่งออก 2 ทาง (speaker + WebRTC stream) ---
-    instDest = sharedCtx.createMediaStreamDestination();
-
-    const instMonitor = sharedCtx.createGain();
-    instMonitor.gain.value = 0.8;
-    instMonitor.connect(sharedCtx.destination); // ออก speaker (ได้ยินตัวเอง)
-    instMonitor.connect(instDest);              // ออก WebRTC stream (ส่งให้เพื่อน)
-
-    // เปลี่ยน Tone.js ให้ output ผ่าน instMonitor แทน destination โดยตรง
-    Tone.getDestination().disconnect();
-    Tone.getDestination().connect(instMonitor);
-
-    // --- Mic output: micGain → micDest (แยก track ออกจาก instruments) ---
+    // --- Mic output: สร้างเส้นทางสำหรับไมค์แยกต่างหาก ---
     micGain = sharedCtx.createGain();
-    micGain.gain.value = 0; // ปิดไว้ก่อน จนกว่าผู้ใช้กดปุ่ม mic
+    micGain.gain.value = 0; // 
 
     const micDest = sharedCtx.createMediaStreamDestination();
     micGain.connect(micDest);
 
-    // รวม instrument track + mic track เป็น MediaStream เดียว
-    const instTrack = instDest.stream.getAudioTracks()[0];
-    const micTrack  = micDest.stream.getAudioTracks()[0];
-    mixedStream = new MediaStream([instTrack, micTrack]);
+    mixedStream = micDest.stream;
 
     // --- Reverb (effect ร่วมสำหรับ Piano และ Guitar) ---
     const reverb = new Tone.Reverb(0.4).toDestination();
