@@ -58,7 +58,7 @@ server.on('upgrade', (req, socket, head) => {
     socket.write('HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n' + `Sec-WebSocket-Accept: ${digest}\r\n\r\n`);
 
     // 3.2 สร้างตัวตน (Profile) ให้ผู้ใช้ที่เพิ่งเชื่อมต่อเข้ามาใหม่
-    const client = { socket, id: crypto.randomUUID(), room: null, name: null, instrument: null, peerId: null };
+    const client = { socket, id: crypto.randomUUID(), room: null, name: null, instrument: null, peerId: null, lastPing: Date.now() };
     clients.push(client);
 
     // 3.3 เมื่อได้รับข้อมูลจาก Client
@@ -75,7 +75,9 @@ server.on('upgrade', (req, socket, head) => {
 });
 
 function handleMessage(c, m) {
+    c.lastPing = Date.now();
     switch (m.type) {
+        case 'PING': break;
         case 'LOGIN': // เมื่อกรอกชื่อเข้าสู่ระบบ
             c.name = m.payload.name; sendRoomList(c); break;
         case 'CREATE_ROOM':// สร้างห้องใหม่
@@ -176,6 +178,16 @@ function createFrame(data) {
     else { frame.push(126); frame.push((len >> 8) & 255); frame.push(len & 255); }
     return Buffer.concat([Buffer.from(frame), payload]);
 }
+setInterval(() => {
+    const now = Date.now();
+    clients.forEach(c => {
+        // ถ้าเงียบหายไปเกิน 10 วินาที (แปลว่าปัดแอปทิ้ง หรือเน็ตหลุด)
+        if (now - c.lastPing > 10000) { 
+            handleDisconnect(c);
+            c.socket.destroy(); // ตัดการเชื่อมต่อทันที
+        }
+    });
+}, 5000);
 
 // ==========================================================================
 // 7. BROADCAST UTILITIES (ตัวช่วยในการส่งข้อความ)

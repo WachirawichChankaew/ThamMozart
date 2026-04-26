@@ -47,7 +47,7 @@ function notify(msg, type = 'info') {
 
 // --- WebSocket ---
 let ws;                         // WebSocket connection กับ server
-
+let pingInterval;
 // --- ข้อมูลผู้ใช้และห้อง ---
 let myName = '';                // ชื่อผู้ใช้
 let myId = '';                  // ID ที่ server กำหนดให้
@@ -163,6 +163,9 @@ function connect() {
         notify('Connected', 'success');
         send('LOGIN', { name: myName, peerId: myPeerId });
         switchScreen('lobby');
+        pingInterval = setInterval(() => {
+            send('PING', {});
+        }, 3000);
     };
 
     ws.onmessage = (event) => {
@@ -174,9 +177,10 @@ function connect() {
     };
 
     ws.onclose = () => {
+        clearInterval(pingInterval);
         notify('Disconnected', 'error');
         stopMic();
-        setTimeout(connect, 3000); // พยายามเชื่อมใหม่
+        setTimeout(connect, 3000); 
     };
 }
 
@@ -445,12 +449,24 @@ function renderMembers(users) {
 
     if (!peer || !mixedStream) return;
 
-    // โทรออกเฉพาะคนที่ยังไม่ได้เชื่อม
-    // ใช้ myId < u.id กัน 2 ฝั่งโทรหากันพร้อมกัน (double-call problem)
+    //เช็คว่ามีเพื่อนคนไหนหลุด/ปิดแอปไปแล้วบ้าง เพื่อตัดสายไมค์ทิ้ง
+    const activePeerIds = users.map(u => u.peerId);
+    Object.keys(activeCalls).forEach(peerId => {
+        if (!activePeerIds.includes(peerId)) {
+            activeCalls[peerId].close();
+            delete activeCalls[peerId];
+            
+            if (remoteAudios[peerId]) {
+                remoteAudios[peerId].srcObject = null;
+                remoteAudios[peerId].remove();
+                delete remoteAudios[peerId];
+            }
+        }
+    });
+
     users.forEach(u => {
         if (u.id === myId || !u.peerId || activeCalls[u.peerId]) return;
         if (myId < u.id) {
-            console.log('📞 โทรออกหา:', u.name);
             const call = peer.call(u.peerId, mixedStream);
             if (call) handleCall(call);
         }
