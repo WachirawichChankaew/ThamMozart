@@ -119,9 +119,23 @@ function handleServerMessage(msg) {
 }
 
 // --- 6. ระบบไมโครโฟน WebRTC (ลื่นไหล ไม่กระตุก) ---
+let isLoggingIn = false; 
+
 async function login() {
+    //  2. ถ้าระบบกำลังล็อคอยู่ ให้หยุดการทำงานรอบใหม่ทันที (กันกดรัว)
+    if (isLoggingIn) return; 
+
     myName = document.getElementById('username').value.trim();
     if (!myName) { notify("Name required", "error"); return; }
+
+    //  3. ล็อคระบบ และเปลี่ยนหน้าตาปุ่มให้รู้ว่ากำลังโหลด
+    isLoggingIn = true;
+    const btn = document.querySelector('.card-head-inside .button-outline');
+    if (btn) {
+        btn.innerText = "Loading...";
+        btn.style.opacity = "0.5";
+        btn.style.cursor = "not-allowed";
+    }
 
     try {
         await Tone.start();
@@ -136,15 +150,12 @@ async function login() {
                     autoGainControl: true
                 }
             });
-            // เชื่อม mic เข้า graph: mic → micGain → mixerDest
-            // micGain.gain = 0 อยู่แล้ว (ปิดไว้จนกว่ากดปุ่ม)
             micSourceNode = sharedCtx.createMediaStreamSource(micStream);
             micSourceNode.connect(micGain);
         } catch(micErr) {
             notify("ไม่มีไมค์ — เล่นดนตรีได้อย่างเดียว", "info");
         }
 
-        // PeerJS ส่ง mixedStream (mic + ดนตรี รวมกัน) แทน micStream เปล่าๆ
         peer = new Peer(undefined, {
             config: {
                 iceServers: [
@@ -157,14 +168,16 @@ async function login() {
         peer.on('open', (id) => {
             myPeerId = id;
             connect();
+            resetLoginButton(btn); //  4. ปลดล็อคปุ่มเมื่อโหลดเสร็จเรียบร้อย
         });
 
         peer.on('error', (err) => {
             console.error('PeerJS error:', err);
             notify('Voice error: ' + err.type, 'error');
+            resetLoginButton(btn); //  ปลดล็อคปุ่มถ้าระบบเสียงมีปัญหา
         });
 
-        // ตอบรับสาย — ส่ง mixedStream กลับ (ทั้งไมค์+ดนตรีของเรา)
+        // ตอบรับสาย — ส่ง mixedStream กลับ
         peer.on('call', (call) => {
             call.answer(mixedStream);
             handleCall(call);
@@ -172,6 +185,17 @@ async function login() {
 
     } catch (e) {
         notify("เกิดข้อผิดพลาด: " + e.message, "error");
+        resetLoginButton(btn); //  ปลดล็อคปุ่มเมื่อเกิด Error
+    }
+}
+
+// 🔥 5. ฟังก์ชันย่อยสำหรับคืนค่าปุ่มกลับมาให้กดใหม่ได้ (เช่น เวลากดย้อนกลับหน้าแรก)
+function resetLoginButton(btn) {
+    isLoggingIn = false;
+    if (btn) {
+        btn.innerText = "Submit";
+        btn.style.opacity = "1";
+        btn.style.cursor = "pointer";
     }
 }
 

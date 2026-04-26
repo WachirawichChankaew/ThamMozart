@@ -229,7 +229,7 @@ textarea {
 .room-content {
     flex: 1;
     display: flex;
-    height: calc(100% - 350px);
+    min-height: 0; 
 }
 
 .side-panel {
@@ -240,7 +240,7 @@ textarea {
     flex-direction: column;
     gap: 10px;
     border-right: 1px solid #444;
-    overflow-y: auto;
+    min-height: 0; 
 }
 
 .chat-panel {
@@ -343,6 +343,7 @@ textarea {
 }
 
 .instrument-area {
+    flex: 0 0 45%; 
     height: 45%;
     background: #111;
     border-top: 2px solid var(--main);
@@ -351,7 +352,6 @@ textarea {
     align-items: center;
     position: relative;
     user-select: none;
-    /* รองรับการเลื่อนซ้ายขวาบนมือถือถ้าเครื่องดนตรีใหญ่ไป */
     overflow-x: auto;
     overflow-y: hidden;
 }
@@ -454,14 +454,43 @@ textarea {
     text-align: center;
 }
 
+/* 1. คุมกล่องใหญ่ให้เป็น Grid 2 คอลัมน์ (ใช้เครื่องหมาย # เพราะเป็น ID) */
+#memberList {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-top: 15px;
+    overflow-y: auto;
+    flex: 1; 
+    min-height: 0; 
+    width: 100%;
+    align-content: start;
+}
+
+/* 2. ปรับขนาดการ์ดแต่ละใบไม่ให้เบียดกัน */
 .member-card {
-    background: #3a3a3a;
-    padding: 5px;
-    border-radius: 5px;
-    margin-bottom: 5px;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 10px 12px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
+    min-width: 0; 
+    box-sizing: border-box;
+}
+
+/* 3. บังคับให้กรอบข้อความอยู่ข้างในการ์ดเท่านั้น */
+.member-card > div:last-child {
+    overflow: hidden;
+    width: 100%;
+}
+
+/* 4. ถ้าชื่อหรือเครื่องดนตรียาวเกินไป ให้ตัดจบด้วย ... */
+.member-card h5, .member-card h6 {
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .chat-msg {
