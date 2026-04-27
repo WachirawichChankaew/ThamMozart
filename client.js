@@ -80,7 +80,6 @@ let isLoggingIn = false;        // ล็อกกันกดปุ่ม Submi
 let sharedCtx = null;           // AudioContext (ดึงจาก Tone.js เพื่อให้ใช้ร่วมกัน)
 let micSourceNode = null;       // MediaStreamSourceNode ของไมค์
 let micGain = null;             // GainNode: toggle เสียงไมค์ขึ้น/ลง (0 = ปิด, 1 = เปิด)
-let instDest = null;            // MediaStreamDestination สำหรับ stream เสียงดนตรี
 let mixedStream = null;         // MediaStream รวม (mic track + instrument track) ส่งผ่าน WebRTC
 
 // ============================================================
